@@ -1,5 +1,5 @@
 QT += core
-QT -= gui
+QT += gui
 
 TARGET = cvproj
 CONFIG += console

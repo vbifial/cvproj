@@ -1,15 +1,14 @@
 #include <QCoreApplication>
 #include <iostream>
-
+#include <QImage>
 
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
-    std::cout << "hello" << std::endl;
     
-    std::cout << argv[0];
+    QImage qimg("input.jpg");
     
-    
+    std::cout << qimg.width() << " " << qimg.height() << std::endl;
     
     return a.exec();
 }
