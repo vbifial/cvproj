@@ -11,9 +11,11 @@ TEMPLATE = app
 
 SOURCES += main.cpp \
     gimage.cpp \
-    common.cpp
+    common.cpp \
+    gconvol.cpp
 
 HEADERS += \
     gimage.h \
-    common.h
+    common.h \
+    gconvol.h
 

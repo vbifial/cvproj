@@ -38,6 +38,6 @@ void GImage::save(const char *filename) {
 GImage::~GImage()
 {
     if (a != nullptr)
-        delete a;
+        delete[] a;
 }
 
