@@ -1,10 +1,12 @@
 #pragma once
 #ifndef COMMON
 #define COMMON
+#define _USE_MATH_DEFINES
 #include <QCoreApplication>
 #include <iostream>
 #include <QImage>
 #include <memory>
+#include <cmath>
 
 using namespace std;
 
@@ -16,6 +18,7 @@ class GImage;
 GConvol* getSobelX();
 GConvol* getSobelY();
 GImage* getSobel(GImage &img);
+GConvol* getGaussian(float sigma);
 
 const float rgbLum[] = {0.213, 0.715, 0.072};
 

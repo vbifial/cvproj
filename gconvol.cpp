@@ -129,13 +129,46 @@ GImage* GConvol::applySeparate(GImage &img, EdgeType edge)
 {
     int width = img.width;
     int height = img.height;
-//    int cwidth = width + 2 * r;
-//    int cheight = height + 2 * r;
-    GImage* wcopy = prepare(img, edge);
+    int cwidth = width + 2 * r;
+    int cheight = height + 2 * r;
+    unique_ptr<GImage> wcopy(prepare(img, edge));
+    unique_ptr<GImage> xcopy(prepare(img, edge));
+    GImage* res = new GImage(width, height);
     
+    int csize = 2 * r + 1;
+    float vx[csize];
+    float vy[csize];
+    for (int i = 0; i < csize; i++)
+        vx[i] = vy[i] = 0.f;
+    for (int i = 0; i < csize; i++) {
+        for (int j = 0; j < csize; j++) {
+            float val = a[i * csize + j];
+            vx[csize - i - 1] += val;
+            vy[csize - j - 1] += val;
+        }
+    }
     
+    for (int i = 0; i < cheight; i++) {
+        for (int j = 0; j < width; j++) {
+            float val = 0.f;
+            for (int k = 0; k < csize; k++) {
+                val += vx[k] * wcopy->a[i * cwidth + j + k];
+            }
+            xcopy->a[i * cwidth + j + r] = val;
+        }
+    }
     
-    return wcopy;
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            float val = 0.f;
+            for (int k = 0; k < csize; k++) {
+                val += vy[k] * xcopy->a[(i + k) * cwidth + j + r];
+            }
+            res->a[i * width + j] = val;
+        }
+    }
+    
+    return res;
 }
 
 

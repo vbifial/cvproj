@@ -61,3 +61,32 @@ GImage *getSobel(GImage &img)
     
     return ret;
 }
+
+GConvol *getGaussian(float sigma)
+{
+    int r = (int)round((sigma * 3) + 0.5);
+    GConvol *ret = new GConvol(r);
+    int size = r * 2 + 1;
+    float sum = 0.f;
+    float pi = (float)M_PI;
+    float sqs = sigma * sigma;
+    
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            int dx = i - r;
+            int dy = j - r;
+            float val = 1.f / (2.f * pi * sqs) * 
+                    expf(-(dx * dx + dy * dy) / (2.f * sqs));
+            sum += val;
+            ret->a[i * size + j] = val;
+        }
+    }
+    
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            ret->a[i * size + j] /= sum;
+        }
+    }
+    
+    return ret;
+}
