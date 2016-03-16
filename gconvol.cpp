@@ -91,18 +91,46 @@ GImage* GConvol::prepare(GImage &source, EdgeType edge)
 GConvol::GConvol()
 {
     r = 0;
-    a = nullptr;
+}
+
+GConvol::GConvol(int r)
+{
+    this->r = r;
+    a = new float[(r * 2 + 1) * (r * 2 + 1)];
 }
 
 GImage* GConvol::apply(GImage &img, EdgeType edge)
 {
-    GImage* wcopy = prepare(img, edge);
+    int width = img.width;
+    int height = img.height;
+    int cwidth = width + 2 * r;
+    unique_ptr<GImage> wcopy(prepare(img, edge));
+    GImage* res = new GImage(width, height);
     
-    return wcopy;
+    int csize = r * 2 + 1;
+    
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            float cur = 0;
+            for (int l = 0; l < csize; l++) {
+                for (int k = 0; k < csize; k++) {
+                    cur += a[(csize - l - 1) * csize + (csize - k - 1)] * 
+                            wcopy->a[(i + l) * cwidth + j + k];
+                }
+            }
+            res->a[i * width + j] = cur;
+        }
+    }
+    
+    return res;
 }
 
 GImage* GConvol::applySeparate(GImage &img, EdgeType edge)
 {
+    int width = img.width;
+    int height = img.height;
+//    int cwidth = width + 2 * r;
+//    int cheight = height + 2 * r;
     GImage* wcopy = prepare(img, edge);
     
     

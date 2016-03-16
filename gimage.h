@@ -14,6 +14,7 @@ public:
     float *a;
     
     void save(const char *filename);
+    void normalizeMinMax();
     
     ~GImage();
 };

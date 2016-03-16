@@ -11,6 +11,7 @@ private:
 
 public:
     GConvol();
+    GConvol(int r);
     int r;
     float *a;
     
