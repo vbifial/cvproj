@@ -7,16 +7,23 @@ class GConvol
 {
 private:
     
-    GImage* prepare(GImage &source, EdgeType edge);
+    GImage prepare(GImage &source, EdgeType edge);
 
 public:
     GConvol();
     GConvol(int r);
     int r;
-    float *a;
+    unique_ptr<float[]> a;
     
-    GImage* apply(GImage &img, EdgeType edge);
-    GImage* applySeparate(GImage &img, EdgeType edge);
+    // move semantics
+    GConvol(GConvol&& conv) : a(move(conv.a)){}
+    GConvol& operator=(GConvol&& conv) {
+        a = move(conv.a);
+        return *this;
+    }
+    
+    GImage apply(GImage &img, EdgeType edge);
+    GImage applySeparate(GImage &img, EdgeType edge);
     
     ~GConvol();
 };

@@ -9,9 +9,17 @@ public:
     GImage();
     GImage(int width, int height);
     GImage(QImage &img);
+    
     int width;
     int height;
-    float *a;
+    unique_ptr<float[]> a;
+    
+    // move semantics
+    GImage(GImage&& img) : a(move(img.a)){}
+    GImage& operator=(GImage&& img) {
+        a = move(img.a);
+        return *this;
+    }
     
     void save(const char *filename);
     void normalizeMinMax();

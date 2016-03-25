@@ -7,18 +7,20 @@
 #include <QImage>
 #include <memory>
 #include <cmath>
+#include <chrono>
 
 using namespace std;
 
 float fromRGB(int color);
 int toRGB(float color);
+int getTimeMill();
 class GConvol;
 class GImage;
 
-GConvol* getSobelX();
-GConvol* getSobelY();
-GImage* getSobel(GImage &img);
-GConvol* getGaussian(float sigma);
+GConvol getSobelX();
+GConvol getSobelY();
+GImage getSobel(GImage &img);
+GConvol getGaussian(float sigma);
 
 const float rgbLum[] = {0.213, 0.715, 0.072};
 

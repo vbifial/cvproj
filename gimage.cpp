@@ -9,20 +9,22 @@ GImage::GImage(int width, int height)
 {
     this->width = width;
     this->height = height;
-    a = new float[width * height];
+    unique_ptr<float[]> t(new float[width * height]);
+    a = move(t);
 }
 
 GImage::GImage(QImage &img)
 {
     this->width = img.width();
     this->height = img.height();
-    a = new float[width * height];
+    unique_ptr<float[]> a(new float[width * height]);
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
             QRgb color = img.pixel(j, i);
             a[i * width + j] = fromRGB(color);
         }
     }
+    this->a = move(a);
 }
 
 void GImage::save(const char *filename) {
@@ -60,7 +62,6 @@ void GImage::normalizeMinMax()
 
 GImage::~GImage()
 {
-    if (a != nullptr)
-        delete[] a;
+    
 }
 

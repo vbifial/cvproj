@@ -5,8 +5,7 @@
 
 int main(int argc, char *argv[])
 {
-    int time = chrono::duration_cast<chrono::milliseconds>
-            (chrono::system_clock::now().time_since_epoch()).count();
+    int time = getTimeMill();
     QCoreApplication a(argc, argv);
     
     QImage qimg("input.jpg");
@@ -14,20 +13,19 @@ int main(int argc, char *argv[])
     
     cout << gimg.width << " " << gimg.height << std::endl;
     
-    unique_ptr<GImage> out(getSobel(gimg));
-    out->normalizeMinMax();
-    out->save("sobel.jpg");
+    GImage out = getSobel(gimg);
+    out.normalizeMinMax();
+    out.save("sobel.jpg");
+    cout << "Got Sobel." << std::endl;
     
-    unique_ptr<GConvol> gauss(getGaussian(100));
+    GConvol gauss = getGaussian(3);
 //    unique_ptr<GImage> smooth(gauss->apply(gimg, EdgeType_Mirror));
-    unique_ptr<GImage> smooth(gauss->applySeparate(gimg, EdgeType_Mirror));
-    smooth->save("gauss.jpg");
+    GImage smooth = gauss.applySeparate(gimg, EdgeType_Mirror);
+    smooth.save("gauss.jpg");
     
     gimg.save("output.jpg");
     
-    time -= chrono::duration_cast<chrono::milliseconds>
-            (chrono::system_clock::now().time_since_epoch()).count();
-    time = -time;
+    time = getTimeMill() - time;
     cout << "Completed in " << time << "ms." << endl;
     return a.exec();
 }
