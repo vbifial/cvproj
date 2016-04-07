@@ -10,13 +10,18 @@ public:
     GImage(int width, int height);
     GImage(QImage &img);
     
+    GImage(const GImage &img);
+    GImage& operator=(const GImage& img);
+    
     int width;
     int height;
     unique_ptr<float[]> a;
     
     // move semantics
-    GImage(GImage&& img) : a(move(img.a)){}
+    GImage(GImage&& img) : width(img.width), height(img.height), a(move(img.a)) {}
     GImage& operator=(GImage&& img) {
+        this->width = img.width;
+        this->height = img.height;
         a = move(img.a);
         return *this;
     }

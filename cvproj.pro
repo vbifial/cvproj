@@ -12,10 +12,12 @@ TEMPLATE = app
 SOURCES += main.cpp \
     gimage.cpp \
     common.cpp \
-    gconvol.cpp
+    gconvol.cpp \
+    gpyramid.cpp
 
 HEADERS += \
     gimage.h \
     common.h \
-    gconvol.h
+    gconvol.h \
+    gpyramid.h
 

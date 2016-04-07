@@ -132,6 +132,7 @@ GImage GConvol::applySeparate(GImage &img, EdgeType edge)
     int height = img.height;
     int cwidth = width + 2 * r;
     int cheight = height + 2 * r;
+    
     GImage wcopy = prepare(img, edge);
     GImage xcopy = prepare(img, edge);
     GImage res(width, height);

@@ -1,7 +1,7 @@
 #include "common.h"
 #include "gimage.h"
 #include "gconvol.h"
-#include <chrono>
+#include "gpyramid.h"
 
 int main(int argc, char *argv[])
 {
@@ -13,17 +13,18 @@ int main(int argc, char *argv[])
     
     cout << gimg.width << " " << gimg.height << std::endl;
     
-    GImage out = getSobel(gimg);
-    out.normalizeMinMax();
-    out.save("sobel.jpg");
-    cout << "Got Sobel." << std::endl;
-    
-    GConvol gauss = getGaussian(3);
-//    unique_ptr<GImage> smooth(gauss->apply(gimg, EdgeType_Mirror));
-    GImage smooth = gauss.applySeparate(gimg, EdgeType_Mirror);
-    smooth.save("gauss.jpg");
-    
     gimg.save("output.jpg");
+    
+    GPyramid pyr(gimg, 1.6, 10);
+    
+    char st[] = "pyr??.jpg";
+    for (int i = 0; i < pyr.ocnt; i++) {
+        st[3] = '0' + i;
+        for (int j = 0; j < pyr.olayers; j++) {
+            st[4] = '0' + j;
+            pyr.a[i * pyr.olayers + j].save(st);
+        }
+    }
     
     time = getTimeMill() - time;
     cout << "Completed in " << time << "ms." << endl;

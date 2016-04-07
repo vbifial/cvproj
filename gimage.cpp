@@ -5,6 +5,18 @@ GImage::GImage()
     
 }
 
+GImage& GImage::operator=(const GImage& img) {
+    this->width = img.width;
+    this->height = img.height;
+    int size = width * height;
+    unique_ptr<float[]> a(new float[size]);
+    for (int i = 0; i < size; i++) {
+        a[i] = img.a[i];
+    }
+    this->a = move(a);
+    return *this;
+}
+
 GImage::GImage(int width, int height)
 {
     this->width = width;
@@ -23,6 +35,18 @@ GImage::GImage(QImage &img)
             QRgb color = img.pixel(j, i);
             a[i * width + j] = fromRGB(color);
         }
+    }
+    this->a = move(a);
+}
+
+GImage::GImage(const GImage &img)
+{
+    this->width = img.width;
+    this->height = img.height;
+    int size = width * height;
+    unique_ptr<float[]> a(new float[size]);
+    for (int i = 0; i < size; i++) {
+        a[i] = img.a[i];
     }
     this->a = move(a);
 }
