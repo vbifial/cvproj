@@ -15,16 +15,16 @@ int main(int argc, char *argv[])
     
     gimg.save("output.jpg");
     
-    GPyramid pyr(gimg, 1.6, 10);
+    GPyramid pyr(gimg, 1.6, .5, 4);
     
-    char st[] = "pyr??.jpg";
-    for (int i = 0; i < pyr.ocnt; i++) {
-        st[3] = '0' + i;
-        for (int j = 0; j < pyr.olayers; j++) {
-            st[4] = '0' + j;
-            pyr.a[i * pyr.olayers + j].save(st);
+    GImage out(gimg.width, gimg.height);
+    
+    for (int i = 0; i < out.height; i++) {
+        for (int j = 0; j < out.width; j++) {
+            out.a[i * out.width + j] = pyr.L(j, i, 64.);
         }
     }
+    out.save("out.jpg");
     
     time = getTimeMill() - time;
     cout << "Completed in " << time << "ms." << endl;
