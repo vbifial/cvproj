@@ -15,16 +15,17 @@ int main(int argc, char *argv[])
     
     gimg.save("output.jpg");
     
-    GPyramid pyr(gimg, 1.6, .5, 4);
+//    GPyramid pyr(gimg, 1.6, .5, 4);
     
-    GImage out(gimg.width, gimg.height);
+    vector<pair<int, int> > mor = getMoravec(gimg, 2, 2, 0.1);
     
-    for (int i = 0; i < out.height; i++) {
-        for (int j = 0; j < out.width; j++) {
-            out.a[i * out.width + j] = pyr.L(j, i, 64.);
-        }
+    cout << mor.size() << endl;
+    
+    QImage out = gimg.convert();
+    for (uint i = 0; i < mor.size(); i++) {
+        mark(out, mor[i].first, mor[i].second);
     }
-    out.save("out.jpg");
+    out.save("moravec.jpg", 0, 99);
     
     time = getTimeMill() - time;
     cout << "Completed in " << time << "ms." << endl;

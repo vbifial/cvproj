@@ -8,6 +8,7 @@
 #include <memory>
 #include <cmath>
 #include <chrono>
+#include <vector>
 
 using namespace std;
 
@@ -16,11 +17,15 @@ int toRGB(float color);
 int getTimeMill();
 class GConvol;
 class GImage;
+class GPyramid;
 
 GConvol getSobelX();
 GConvol getSobelY();
 GImage getSobel(GImage &img);
 GConvol getGaussian(float sigma);
+vector<pair<int, int> > getMoravec(GImage &img, int wrad, int mrad, float thres);
+
+void mark(QImage &img, int x, int y);
 
 const float rgbLum[] = {0.213, 0.715, 0.072};
 

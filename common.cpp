@@ -95,3 +95,72 @@ int getTimeMill()
     return chrono::duration_cast<chrono::milliseconds>
             (chrono::system_clock::now().time_since_epoch()).count();
 }
+
+vector<pair<int, int> > getMoravec(GImage &img, int wrad, int mrad, float thres)
+{
+    vector<pair<int, int> > ret;
+    ret.reserve(img.width * img.height);
+    
+    int dirs = 8;
+    int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    int dy[] = {1, 0, -1, 1, -1, 1, 0, -1};
+    
+    float op[img.height][img.width];
+    
+    for (int i = 0; i < img.height; i++)
+        for (int j = 0; j < img.width; j++)
+            op[i][j] = 0.;
+    
+    for (int i = wrad + 1; i < img.height - wrad - 1; i++) {
+        for (int j = wrad + 1; j < img.width - wrad - 1; j++) {
+            float mssd = 1e10;
+            for (int k = 0; k < dirs; k++) {
+                float sum = 0;
+                for (int y = -wrad; y <= wrad; y++) {
+                    for (int x = -wrad; x <= wrad; x++) {
+                        float val = img.a[(i + y) * img.width + j + x] - 
+                                img.a[(i + y + dy[k]) * img.width + j + x + dx[k]];
+                        sum += val * val;
+                    }
+                }
+                mssd = min(mssd, sum);
+            }
+            op[i][j] = mssd;
+        }
+    }
+    
+    for (int i = wrad + 1; i < img.height - wrad - 1; i++) {
+        for (int j = wrad + 1; j < img.width - wrad - 1; j++) {
+            bool o = true;
+            for (int k = -mrad; k <= mrad; k++) {
+                for (int l = -mrad; l <= mrad; l++) {
+                    if (op[i][j] <= op[i + k][j + l] && (k != 0 || l != 0)) {
+                        o = false;
+                        break;
+                    }
+                    if (!o)
+                        break;
+                }
+            }
+            if (o && op[i][j] > thres) {
+                ret.push_back(make_pair(j, i));
+            }
+        }
+    }
+    
+    return ret;
+}
+
+void mark(QImage &img, int x, int y)
+{
+    int size = 4;
+    int dx[] = {0, 0, -1, 1};
+    int dy[] = {-1, 1, 0, 0};
+    for (int i = 0; i < size; i++) {
+        if (x + dx[i] > -1 && y + dy[i] > -1 &&
+                x + dx[i] < img.width() && 
+                y + dy[i] < img.height()) {
+            img.setPixel(x + dx[i], y + dy[i], 255 << 8);
+        }
+    }
+}

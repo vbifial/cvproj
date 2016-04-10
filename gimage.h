@@ -28,6 +28,7 @@ public:
     
     void save(const char *filename);
     void normalizeMinMax();
+    QImage convert();
     
     ~GImage();
 };

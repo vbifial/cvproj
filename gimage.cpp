@@ -52,12 +52,7 @@ GImage::GImage(const GImage &img)
 }
 
 void GImage::save(const char *filename) {
-    QImage img(width, height, QImage::Format_RGB32);
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            img.setPixel(j, i, toRGB(a[i * width + j]));
-        }
-    }
+    QImage img = convert();
     img.save(filename, "jpg", 98);
 }
 
@@ -82,6 +77,17 @@ void GImage::normalizeMinMax()
             a[i * width + j] = (val - min) / dlt;
         }
     }
+}
+
+QImage GImage::convert()
+{
+    QImage img(width, height, QImage::Format_RGB32);
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            img.setPixel(j, i, toRGB(a[i * width + j]));
+        }
+    }
+    return img;
 }
 
 GImage::~GImage()
