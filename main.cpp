@@ -17,15 +17,27 @@ int main(int argc, char *argv[])
     
 //    GPyramid pyr(gimg, 1.6, .5, 4);
     
-    vector<pair<int, int> > mor = getMoravec(gimg, 2, 2, 0.1);
+    auto mor = getMoravec(gimg, 2, 2, 1e-2);
     
-    cout << mor.size() << endl;
+    cout << "moravec " << mor.size() << endl;
+    mor = anms(mor, 200, .1);
     
     QImage out = gimg.convert();
     for (uint i = 0; i < mor.size(); i++) {
-        mark(out, mor[i].first, mor[i].second);
+        mark(out, get<0>(mor[i]), get<1>(mor[i]));
     }
-    out.save("moravec.jpg", 0, 99);
+    out.save("dmoravec.jpg", 0, 99);
+    
+    auto har = getHarris(gimg, 2, 2, .2);
+    
+    cout << "harris " << har.size() << endl;
+    har = anms(har, 200, .1);
+    
+    out = gimg.convert();
+    for (uint i = 0; i < har.size(); i++) {
+        mark(out, get<0>(har[i]), get<1>(har[i]));
+    }
+    out.save("dharris.jpg", 0, 99);
     
     time = getTimeMill() - time;
     cout << "Completed in " << time << "ms." << endl;
