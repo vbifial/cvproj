@@ -36,7 +36,7 @@ GConvol getSobelY()
     return ret;
 }
 
-GImage getSobel(GImage &img)
+GImage getSobel(const GImage &img)
 {
     int width = img.width;
     int height = img.height;
@@ -96,7 +96,7 @@ int getTimeMill()
             (chrono::system_clock::now().time_since_epoch()).count();
 }
 
-poivec getMoravec(GImage &img, int wrad, int mrad, float thres)
+poivec getMoravec(const GImage &img, int wrad, int mrad, float thres)
 {
     poivec ret;
     ret.reserve(img.width * img.height);
@@ -105,15 +105,13 @@ poivec getMoravec(GImage &img, int wrad, int mrad, float thres)
     int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1};
     int dy[] = {1, 0, -1, 1, -1, 1, 0, -1};
     
-    float op[img.height][img.width];
+    unique_ptr<float[]> op = make_unique<float[]>(img.height * img.width);
     
-    for (int i = 0; i < img.height; i++)
-        for (int j = 0; j < img.width; j++)
-            op[i][j] = 0.;
+    std::fill(&op[0], &op[img.height * img.width], 0.);
     
     for (int i = wrad + 1; i < img.height - wrad - 1; i++) {
         for (int j = wrad + 1; j < img.width - wrad - 1; j++) {
-            float mssd = 1e10;
+            float mssd = numeric_limits<float>::max();
             for (int k = 0; k < dirs; k++) {
                 float sum = 0;
                 for (int y = -wrad; y <= wrad; y++) {
@@ -125,7 +123,7 @@ poivec getMoravec(GImage &img, int wrad, int mrad, float thres)
                 }
                 mssd = min(mssd, sum);
             }
-            op[i][j] = mssd;
+            op[i * img.width + j] = mssd;
         }
     }
     
@@ -134,7 +132,8 @@ poivec getMoravec(GImage &img, int wrad, int mrad, float thres)
             bool o = true;
             for (int k = -mrad; k <= mrad; k++) {
                 for (int l = -mrad; l <= mrad; l++) {
-                    if (op[i][j] <= op[i + k][j + l] && (k != 0 || l != 0)) {
+                    if (op[i * img.width + j] <= op[(i + k) * img.width + j + l] && 
+                            (k != 0 || l != 0)) {
                         o = false;
                         break;
                     }
@@ -142,8 +141,8 @@ poivec getMoravec(GImage &img, int wrad, int mrad, float thres)
                         break;
                 }
             }
-            if (o && op[i][j] > thres) {
-                ret.push_back(make_tuple(j, i, op[i][j]));
+            if (o && op[i * img.width + j] > thres) {
+                ret.push_back(make_tuple(j, i, op[i * img.width + j]));
             }
         }
     }
@@ -151,7 +150,7 @@ poivec getMoravec(GImage &img, int wrad, int mrad, float thres)
     return ret;
 }
 
-poivec getHarris(GImage &img, int wrad, int mrad, float thres, float _k)
+poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k)
 {
     poivec ret;
     ret.reserve(img.width * img.height);
@@ -161,10 +160,9 @@ poivec getHarris(GImage &img, int wrad, int mrad, float thres, float _k)
     GImage dx = sx.apply(img, EdgeType_BorderCopy);
     GImage dy = sy.apply(img, EdgeType_BorderCopy);
     
-    float lm[img.height][img.width];
-    for (int i = 0; i < img.height; i++)
-        for (int j = 0; j < img.width; j++)
-            lm[i][j] = 0.;
+    unique_ptr<float[]> lm = make_unique<float[]>(img.height * img.width);
+    
+    fill(&lm[0], &lm[img.height * img.width], 0.);
     
     for (int i = wrad; i < img.height - wrad; i++) {
         for (int j = wrad; j < img.width - wrad; j++) {
@@ -180,7 +178,7 @@ poivec getHarris(GImage &img, int wrad, int mrad, float thres, float _k)
                     hc += cdy * cdy;
                 }
             }
-            lm[i][j] = ha * hc - hb * hb - _k * (ha + hc);
+            lm[i * img.width + j] = ha * hc - hb * hb - _k * (ha + hc);
         }
     }
     
@@ -189,7 +187,8 @@ poivec getHarris(GImage &img, int wrad, int mrad, float thres, float _k)
             bool o = true;
             for (int k = -mrad; k <= mrad; k++) {
                 for (int l = -mrad; l <= mrad; l++) {
-                    if (lm[i][j] <= lm[i + k][j + l] && (k != 0 || l != 0)) {
+                    if (lm[i * img.width + j] <= lm[(i + k) * img.width + j + l] && 
+                            (k != 0 || l != 0)) {
                         o = false;
                         break;
                     }
@@ -197,8 +196,8 @@ poivec getHarris(GImage &img, int wrad, int mrad, float thres, float _k)
                         break;
                 }
             }
-            if (o && lm[i][j] > thres) {
-                ret.push_back(make_tuple(j, i, lm[i][j]));
+            if (o && lm[i * img.width + j] > thres) {
+                ret.push_back(make_tuple(j, i, lm[i * img.width + j]));
             }
         }
     }
@@ -217,7 +216,7 @@ poivec anms(poivec &in, int target, float diff) {
     poivec ret;
     ret.reserve(in.size());
     float l = 0.;
-    float r = 1e5;
+    float r = numeric_limits<float>::max();
     bool u[in.size()];
     while (true) {
         float m = (l + r) / 2.;
@@ -239,7 +238,7 @@ poivec anms(poivec &in, int target, float diff) {
                 cnt++;
             u[i] = o;
         }
-        if (fabs((cnt * 1. / target) - 1) < diff) {
+        if (fabs((cnt * 1. / target) - 1) < diff || (target > in.size())) {
             l = m;
             break;
         }

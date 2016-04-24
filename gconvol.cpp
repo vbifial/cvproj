@@ -1,7 +1,7 @@
 #include "gconvol.h"
 #include "gimage.h"
 
-GImage GConvol::prepare(GImage &source, EdgeType edge)
+GImage GConvol::prepare(const GImage &source, EdgeType edge)
 {
     int width = source.width;
     int height = source.height;
@@ -100,7 +100,7 @@ GConvol::GConvol(int r)
     this->a = move(a);
 }
 
-GImage GConvol::apply(GImage &img, EdgeType edge)
+GImage GConvol::apply(const GImage &img, EdgeType edge)
 {
     int width = img.width;
     int height = img.height;
@@ -126,7 +126,7 @@ GImage GConvol::apply(GImage &img, EdgeType edge)
     return res;
 }
 
-GImage GConvol::applySeparate(GImage &img, EdgeType edge)
+GImage GConvol::applySeparate(const GImage &img, EdgeType edge)
 {
     int width = img.width;
     int height = img.height;

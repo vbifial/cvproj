@@ -18,14 +18,14 @@ int getTimeMill();
 class GConvol;
 class GImage;
 class GPyramid;
-#define poivec vector<tuple<int, int, float> >
+typedef vector<tuple<int, int, float> > poivec;
 
 GConvol getSobelX();
 GConvol getSobelY();
-GImage getSobel(GImage &img);
+GImage getSobel(const GImage &img);
 GConvol getGaussian(float sigma);
-poivec getMoravec(GImage &img, int wrad, int mrad, float thres);
-poivec getHarris(GImage &img, int wrad, int mrad, float thres, float _k = .08);
+poivec getMoravec(const GImage &img, int wrad, int mrad, float thres);
+poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k = .08);
 poivec anms(poivec &in, int target, float diff);
 
 void mark(QImage &img, int x, int y);

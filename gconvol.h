@@ -7,7 +7,7 @@ class GConvol
 {
 private:
     
-    GImage prepare(GImage &source, EdgeType edge);
+    GImage prepare(const GImage &source, EdgeType edge);
 
 public:
     GConvol();
@@ -22,8 +22,8 @@ public:
         return *this;
     }
     
-    GImage apply(GImage &img, EdgeType edge);
-    GImage applySeparate(GImage &img, EdgeType edge);
+    GImage apply(const GImage &img, EdgeType edge);
+    GImage applySeparate(const GImage &img, EdgeType edge);
     
     ~GConvol();
 };
