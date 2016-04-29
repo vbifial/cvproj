@@ -7,8 +7,6 @@ class GConvol
 {
 private:
     
-    GImage prepare(const GImage &source, EdgeType edge);
-
 public:
     GConvol();
     GConvol(int r);

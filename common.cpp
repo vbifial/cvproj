@@ -238,7 +238,7 @@ poivec anms(poivec &in, int target, float diff) {
                 cnt++;
             u[i] = o;
         }
-        if (fabs((cnt * 1. / target) - 1) < diff || (target > in.size())) {
+        if (fabs((cnt * 1. / target) - 1) < diff || ((uint)target > in.size())) {
             l = m;
             break;
         }
@@ -265,5 +265,188 @@ void mark(QImage &img, int x, int y)
                 y + dy[i] < img.height()) {
             img.setPixel(x + dx[i], y + dy[i], 255 << 8);
         }
+    }
+}
+
+GImage prepareEdges(const GImage &source, EdgeType edge, int r)
+{
+    int width = source.width;
+    int height = source.height;
+    
+    int cwidth = width + 2 * r;
+    int cheight = height + 2 * r;
+    GImage wcopy(cwidth, cheight);
+    
+    for (int i = -r; i < height + r; i++) {
+        int l = i;
+        if (l < 0) {
+            switch (edge) {
+            case EdgeType_BorderCopy:
+                l = 0;
+                break;
+            case EdgeType_Mirror:
+                l = -l;
+                break;
+            case EdgeType_Wrap:
+                l += height;
+                break;
+            default:
+                l = -1;
+                break;
+            }
+        }
+        if (l >= height) {
+            switch (edge) {
+            case EdgeType_BorderCopy:
+                l = height - 1;
+                break;
+            case EdgeType_Mirror:
+                l = 2 * height - l - 1;
+                break;
+            case EdgeType_Wrap:
+                l -= height;
+                break;
+            default:
+                l = -1;
+                break;
+            }
+        }
+        for (int j = -r; j < width + r; j++) {
+            int k = j;
+            if (k < 0) {
+                switch (edge) {
+                case EdgeType_BorderCopy:
+                    k = 0;
+                    break;
+                case EdgeType_Mirror:
+                    k = -k;
+                    break;
+                case EdgeType_Wrap:
+                    k += width;
+                    break;
+                default:
+                    k = -1;
+                    break;
+                }
+            }
+            if (k >= width) {
+                switch (edge) {
+                case EdgeType_BorderCopy:
+                    k = width - 1;
+                    break;
+                case EdgeType_Mirror:
+                    k = 2 * width - k - 1;
+                    break;
+                case EdgeType_Wrap:
+                    k -= width;
+                    break;
+                default:
+                    k = -1;
+                    break;
+                }
+            }
+            float val = 0.;
+            if (l != -1 && k != -1)
+                val = source.a[l * width + k];
+            wcopy.a[(i + r) * cwidth + j + r] = val;
+        }
+    }
+    
+    return wcopy;
+}
+
+gdvector getDescriptors(const GImage &img, const poivec &vpoi)
+{
+    gdvector ret;
+    ret.reserve(vpoi.size());
+    
+    int width = img.width;
+//    int height = img.height;
+    int r = 4;
+    int cwidth = width + r * 2;
+//    int cheight = height + r * 2;
+    GImage wimg = prepareEdges(img, EdgeType_BorderCopy, r);
+    
+    GImage sx = getSobelX().apply(wimg, EdgeType_BorderCopy);
+    GImage sy = getSobelX().apply(wimg, EdgeType_BorderCopy);
+    
+    for (int i = 0; i < int(vpoi.size()); i++) {
+        int bx = get<0>(vpoi[i]) + r;
+        int by = get<1>(vpoi[i]) + r;
+        int curBox = 0;
+        gdescriptor cdesc;
+        get<1>(cdesc) = bx - r;
+        get<2>(cdesc) = by - r;
+        float* dv = get<0>(cdesc);
+        for (int cy = -1; cy < 1; cy++) {
+            for (int cx = -1; cx < 1; cx++) {
+                int qy = by + cy * 4 + 1;
+                int qx = bx + cx * 4 + 1;
+                
+                for (int gy = 0; gy < 4; gy++) {
+                    for (int gx = 0; gx < 4; gx++) {
+                        int y = qy + gy;
+                        int x = qx + gx;
+                        float dy = sy.a[y * cwidth + x];
+                        float dx = sx.a[y * cwidth + x];
+                        float fi = atan2f(dy, dx) + M_PI;
+                        float len = sqrtf(dy * dy + dx * dx);
+                        int drcn = int(fi * 4 / M_PI);
+                        dv[curBox * 8 + drcn] += len;
+                    }
+                }
+                curBox++;
+            }
+        }
+        for (int box = 0; box < 4; box++) {
+            float len = 0.;
+            for (int j = 0; j < 8; j++) {
+                len = max(len, dv[box * 8 + j]);
+            }
+            len += 1e-5;
+            for (int j = 0; j < 8; j++) {
+                dv[box * 8 + j] /= len;
+            }
+        }
+        ret.push_back(cdesc);
+    }
+    
+    return ret;
+}
+
+vector<pair<int, int> > getMatches(const gdvector &dfirst, const gdvector &dsecond, const float thres)
+{
+    vector<pair<int, int> > ret;
+    ret.reserve(max(dfirst.size(), dsecond.size()));
+    
+    for (uint i = 0; i < dfirst.size(); i++) {
+        float dist = numeric_limits<float>::max();
+        int id = -1;
+        for (uint j = 0; j < dsecond.size(); j++) {
+            float cur = 0.;
+            for (uint k = 0; k < DSIZE; k++) {
+                float dim = get<0>(dfirst[i])[k] - get<0>(dsecond[j])[k];
+                cur += dim * dim;
+            }
+            if (cur < dist) {
+                dist = cur;
+                id = j;
+            }
+        }
+        if (dist < thres * thres) {
+            ret.push_back(make_pair(i, id));
+        }
+    }
+    
+    return ret;
+}
+
+void drawLine(QImage &img, int x1, int y1, int x2, int y2, int color)
+{
+    float dlt = .3 / max(abs(x1 - x2), abs(y1 - y2));
+    
+    for (float i = 0.; i <= 1.; i += dlt) {
+        float j = 1. - i;
+        img.setPixel(int(roundf(x1 * i + x2 * j)), int(roundf(y1 * i + y2 * j)), color);
     }
 }
