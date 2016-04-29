@@ -368,7 +368,7 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
     GImage wimg = prepareEdges(img, EdgeType_BorderCopy, r);
     
     GImage sx = getSobelX().apply(wimg, EdgeType_BorderCopy);
-    GImage sy = getSobelX().apply(wimg, EdgeType_BorderCopy);
+    GImage sy = getSobelY().apply(wimg, EdgeType_BorderCopy);
     
     for (int i = 0; i < int(vpoi.size()); i++) {
         int bx = get<0>(vpoi[i]) + r;
@@ -391,8 +391,17 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
                         float dx = sx.a[y * cwidth + x];
                         float fi = atan2f(dy, dx) + M_PI;
                         float len = sqrtf(dy * dy + dx * dx);
-                        int drcn = int(fi * 4 / M_PI);
-                        dv[curBox * 8 + drcn] += len;
+                        
+                        float alph = fi * 4. / M_PI;
+                        int drcn = int(alph);
+                        int drnx = drcn + 1;
+                        if (drnx == 8)
+                            drnx = 0;
+                        
+                        float weight = alph - drcn;
+                        
+                        dv[curBox * 8 + drcn] += len * (1 - weight);
+                        dv[curBox * 8 + drnx] += len * weight;
                     }
                 }
                 curBox++;

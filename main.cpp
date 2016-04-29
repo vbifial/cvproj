@@ -20,16 +20,20 @@ int main(int argc, char *argv[])
     
 //    GPyramid pyr(gimg, 1.6, .5, 4);
     
-    auto har1 = getHarris(gimg, 2, 2, .2);
+    auto har1 = getHarris(gimg, 2, 2, 1e-6);
+    cout << "Harris 1: " << har1.size() << endl;
     har1 = anms(har1, 200, .1);
+    cout << "anms 1: " << har1.size() << endl;
     
-    auto har2 = getHarris(gimg2, 2, 2, .2);
+    auto har2 = getHarris(gimg2, 2, 2, 1e-4);
+    cout << "Harris 2: " << har2.size() << endl;
     har2 = anms(har2, 200, .1);
+    cout << "anms 2: " << har2.size() << endl;
     
     auto desc1 = getDescriptors(gimg, har1);
     auto desc2 = getDescriptors(gimg2, har2);
     
-    auto matches = getMatches(desc1, desc2, 1e-1);
+    auto matches = getMatches(desc1, desc2, 1e0);
     
     QImage out(gimg.width + gimg2.width, 
                max(gimg.height, gimg2.height), QImage::Format_RGB32);
@@ -52,7 +56,7 @@ int main(int argc, char *argv[])
     for (uint i = 0; i  < matches.size(); i++) {
         int color = uint_dist(rnd);
         auto &l = desc1[matches[i].first];
-        auto &r = desc2[matches[i].second];        
+        auto &r = desc2[matches[i].second];
         drawLine(out, get<1>(l), get<2>(l), 
                  get<1>(r) + gimg.width, get<2>(r), color);
     }
