@@ -164,6 +164,10 @@ poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k)
     
     fill(&lm[0], &lm[img.height * img.width], 0.);
     
+    float sqs = wrad / 2.;
+    sqs *= sqs;
+    float from = 1.f / (2.f * float(M_PI) * sqs);
+    
     for (int i = wrad; i < img.height - wrad; i++) {
         for (int j = wrad; j < img.width - wrad; j++) {
             float ha = 0;
@@ -173,6 +177,10 @@ poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k)
                 for (int l = -wrad; l <= wrad; l++) {
                     float cdx = dx.a[(i + k) * img.width + j + l];
                     float cdy = dy.a[(i + k) * img.width + j + l];
+                    float mag = 1.f / (from * (2.f * float(M_PI) * sqs)) * 
+                            expf(-(k * k + l * l) / (2.f * sqs));
+                    cdx *= mag;
+                    cdy *= mag;
                     ha += cdx * cdx;
                     hb += cdx * cdy;
                     hc += cdy * cdy;
@@ -205,7 +213,7 @@ poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k)
 //    GImage q(img.width, img.height);
 //    for (int i = 0; i < q.height; i++)
 //        for (int j = 0; j < q.width; j++)
-//            q.a[i * q.width + j] = sqrtf(lm[i][j]);
+//            q.a[i * q.width + j] = sqrtf(lm[i * img.width + j]);
 //    q.normalizeMinMax();
 //    q.save("xhar.jpg");
     
@@ -217,9 +225,12 @@ poivec anms(poivec &in, int target, float diff) {
     ret.reserve(in.size());
     float l = 0.;
     float r = numeric_limits<float>::max();
-    bool u[in.size()];
+    vector<bool> u(in.size());
+    fill(begin(u), end(u), false);
     while (true) {
         float m = (l + r) / 2.;
+        if ((uint)target > in.size())
+            m = 0;
         int cnt = 0;
         for (uint i = 0; i < in.size(); i++) {
             bool o = true;
@@ -238,8 +249,9 @@ poivec anms(poivec &in, int target, float diff) {
                 cnt++;
             u[i] = o;
         }
-        if (fabs((cnt * 1. / target) - 1) < diff || ((uint)target > in.size())) {
-            l = m;
+        if ((uint)target > in.size())
+            break;
+        if (fabs((cnt * 1. / target) - 1) < diff) {
             break;
         }
         if (cnt < target)
@@ -429,9 +441,9 @@ vector<pair<int, int> > getMatches(const gdvector &dfirst, const gdvector &dseco
     ret.reserve(min(dfirst.size(), dsecond.size()));
     
     vector<size_t> lp(dfirst.size());
-    vector<size_t> rp(dfirst.size());    
+    vector<size_t> rp(dsecond.size());    
     
-    vector<float> left(dsecond.size());
+    vector<float> left(dfirst.size());
     vector<float> right(dsecond.size());
     
     fill(begin(left), end(left), numeric_limits<float>::max());
@@ -473,4 +485,49 @@ void drawLine(QImage &img, int x1, int y1, int x2, int y2, int color)
         float j = 1. - i;
         img.setPixel(int(roundf(x1 * i + x2 * j)), int(roundf(y1 * i + y2 * j)), color);
     }
+}
+
+QImage drawPoints(const GImage &img, poivec &vpoi)
+{
+    QImage ret = img.convert();
+    for (uint i = 0; i < vpoi.size(); i++) {
+        mark(ret, get<0>(vpoi[i]), get<1>(vpoi[i]));
+    }
+    return ret;
+}
+
+void saveJpeg(QImage &img, const char* filename)
+{
+    img.save(filename, 0, 99);
+}
+
+QImage drawMatches(const GImage &gimg, const GImage &gimg2, gdvector &desc1, gdvector &desc2, 
+                   vector<pair<int, int> > &matches)
+{
+    QImage ret(gimg.width + gimg2.width, 
+               max(gimg.height, gimg2.height), QImage::Format_RGB32);
+    
+    for (int i = 0; i < gimg.height; i++) {
+        for (int j = 0; j < gimg.width; j++) {
+            ret.setPixel(j, i, toRGB(gimg.a[i * gimg.width + j]));
+        }
+    }
+    for (int i = 0; i < gimg2.height; i++) {
+        for (int j = 0; j < gimg2.width; j++) {
+            ret.setPixel(j + gimg.width, i, 
+                         toRGB(gimg2.a[i * gimg2.width + j]));
+        }
+    }
+    
+    uniform_int_distribution<uint32_t> uint_dist(0, (1 << 24) - 1);
+    mt19937 rnd;
+    
+    for (uint i = 0; i  < matches.size(); i++) {
+        int color = uint_dist(rnd);
+        auto &l = desc1[matches[i].first];
+        auto &r = desc2[matches[i].second];
+        drawLine(ret, get<1>(l), get<2>(l), 
+                 get<1>(r) + gimg.width, get<2>(r), color);
+    }
+    return ret;
 }

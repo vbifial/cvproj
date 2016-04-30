@@ -49,6 +49,11 @@ void drawLine(QImage &img, int x1, int y1, int x2, int y2, int color);
 
 void mark(QImage &img, int x, int y);
 
+QImage drawPoints(const GImage &img, poivec &vpoi);
+QImage drawMatches(const GImage &img1, const GImage &img2, 
+                   gdvector &desc1, gdvector &desc2, vector<pair<int, int> > &matches);
+void saveJpeg(QImage &img, const char* filename);
+
 const float rgbLum[] = {0.213, 0.715, 0.072};
 
 #endif // COMMON

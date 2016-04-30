@@ -79,7 +79,7 @@ void GImage::normalizeMinMax()
     }
 }
 
-QImage GImage::convert()
+QImage GImage::convert() const
 {
     QImage img(width, height, QImage::Format_RGB32);
     for (int i = 0; i < height; i++) {

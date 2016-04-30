@@ -8,10 +8,12 @@ int main(int argc, char *argv[])
     int time = getTimeMill();
     QCoreApplication a(argc, argv);
     
-    QImage qimg("input.jpg");
-    GImage gimg(qimg);
+//    QImage qimg("input1.jpg");
+//    QImage qimg2("input2.jpg");
+    QImage qimg("input3.jpg");
+    QImage qimg2("input4.jpg");
     
-    QImage qimg2("input2.jpg");
+    GImage gimg(qimg);
     GImage gimg2(qimg2);
     
     cout << gimg.width << " " << gimg.height << std::endl;
@@ -20,48 +22,32 @@ int main(int argc, char *argv[])
     
 //    GPyramid pyr(gimg, 1.6, .5, 4);
     
-    auto har1 = getHarris(gimg, 2, 2, 1e-6);
+    auto har1 = getHarris(gimg, 2, 2, 1e-100);
     cout << "Harris 1: " << har1.size() << endl;
     har1 = anms(har1, 200, .1);
     cout << "anms 1: " << har1.size() << endl;
     
-    auto har2 = getHarris(gimg2, 2, 2, 1e-4);
+    auto har2 = getHarris(gimg2, 2, 2, 1e-100);
     cout << "Harris 2: " << har2.size() << endl;
     har2 = anms(har2, 200, .1);
     cout << "anms 2: " << har2.size() << endl;
     
+    QImage qh1 = drawPoints(gimg, har1);
+    saveJpeg(qh1, "har1.jpg");
+    QImage qh2 = drawPoints(gimg2, har2);
+    saveJpeg(qh2, "har2.jpg");
+    
     auto desc1 = getDescriptors(gimg, har1);
+    cout << "desc 1: " << desc1.size() << endl;
     auto desc2 = getDescriptors(gimg2, har2);
+    cout << "desc 2: " << desc2.size() << endl;
     
-    auto matches = getMatches(desc1, desc2, 5e10);
+    auto matches = getMatches(desc1, desc2, 1e0);
+    cout << "matches : " << matches.size() << endl;
     
-    QImage out(gimg.width + gimg2.width, 
-               max(gimg.height, gimg2.height), QImage::Format_RGB32);
+    QImage out = drawMatches(gimg, gimg2, desc1, desc2, matches);
     
-    for (int i = 0; i < gimg.height; i++) {
-        for (int j = 0; j < gimg.width; j++) {
-            out.setPixel(j, i, toRGB(gimg.a[i * gimg.width + j]));
-        }
-    }
-    for (int i = 0; i < gimg2.height; i++) {
-        for (int j = 0; j < gimg2.width; j++) {
-            out.setPixel(j + gimg.width, i, 
-                         toRGB(gimg2.a[i * gimg2.width + j]));
-        }
-    }
-    
-    uniform_int_distribution<uint32_t> uint_dist(0, (1 << 24) - 1);
-    mt19937 rnd;
-    
-    for (uint i = 0; i  < matches.size(); i++) {
-        int color = uint_dist(rnd);
-        auto &l = desc1[matches[i].first];
-        auto &r = desc2[matches[i].second];
-        drawLine(out, get<1>(l), get<2>(l), 
-                 get<1>(r) + gimg.width, get<2>(r), color);
-    }
-    
-    out.save("mathches.jpg", 0, 99);
+    saveJpeg(out, "mathches.jpg");
     
     time = getTimeMill() - time;
     cout << "Completed in " << time << "ms." << endl;
