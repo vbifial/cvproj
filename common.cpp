@@ -426,24 +426,39 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
 vector<pair<int, int> > getMatches(const gdvector &dfirst, const gdvector &dsecond, const float thres)
 {
     vector<pair<int, int> > ret;
-    ret.reserve(max(dfirst.size(), dsecond.size()));
+    ret.reserve(min(dfirst.size(), dsecond.size()));
     
-    for (uint i = 0; i < dfirst.size(); i++) {
-        float dist = numeric_limits<float>::max();
-        int id = -1;
-        for (uint j = 0; j < dsecond.size(); j++) {
+    vector<size_t> lp(dfirst.size());
+    vector<size_t> rp(dfirst.size());    
+    
+    vector<float> left(dsecond.size());
+    vector<float> right(dsecond.size());
+    
+    fill(begin(left), end(left), numeric_limits<float>::max());
+    fill(begin(right), end(right), numeric_limits<float>::max());
+    
+    for (size_t i = 0; i < dfirst.size(); i++) {
+        for (size_t j = 0; j < dsecond.size(); j++) {
             float cur = 0.;
-            for (uint k = 0; k < DSIZE; k++) {
+            for (size_t k = 0; k < DSIZE; k++) {
                 float dim = get<0>(dfirst[i])[k] - get<0>(dsecond[j])[k];
                 cur += dim * dim;
             }
-            if (cur < dist) {
-                dist = cur;
-                id = j;
+            if (left[i] > cur) {
+                left[i] = cur;
+                lp[i] = j;
+            }
+            if (right[j] > cur) {
+                right[j] = cur;
+                rp[j] = i;
             }
         }
-        if (dist < thres * thres) {
-            ret.push_back(make_pair(i, id));
+    }
+    
+    for (size_t i = 0; i < dfirst.size(); i++) {
+        int j = lp[i];
+        if (rp[j] == i && left[i] <= thres * thres) {
+            ret.push_back(make_pair(i, j));
         }
     }
     

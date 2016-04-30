@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     auto desc1 = getDescriptors(gimg, har1);
     auto desc2 = getDescriptors(gimg2, har2);
     
-    auto matches = getMatches(desc1, desc2, 1e0);
+    auto matches = getMatches(desc1, desc2, 5e10);
     
     QImage out(gimg.width + gimg2.width, 
                max(gimg.height, gimg2.height), QImage::Format_RGB32);
