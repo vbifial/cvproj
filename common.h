@@ -9,6 +9,7 @@
 #include <cmath>
 #include <chrono>
 #include <vector>
+#include <iomanip>
 
 using namespace std;
 
@@ -28,7 +29,7 @@ class GConvol;
 class GImage;
 class GPyramid;
 typedef vector<tuple<int, int, float> > poivec;
-typedef tuple<float[DSIZE], int, int> gdescriptor;
+typedef tuple<float[DSIZE], int, int, float> gdescriptor;
 typedef vector<gdescriptor> gdvector;
 
 GConvol getSobelX();

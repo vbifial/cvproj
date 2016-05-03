@@ -166,7 +166,6 @@ poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k)
     
     float sqs = wrad / 2.;
     sqs *= sqs;
-    float from = 1.f / (2.f * float(M_PI) * sqs);
     
     for (int i = wrad; i < img.height - wrad; i++) {
         for (int j = wrad; j < img.width - wrad; j++) {
@@ -177,8 +176,7 @@ poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k)
                 for (int l = -wrad; l <= wrad; l++) {
                     float cdx = dx.a[(i + k) * img.width + j + l];
                     float cdy = dy.a[(i + k) * img.width + j + l];
-                    float mag = 1.f / (from * (2.f * float(M_PI) * sqs)) * 
-                            expf(-(k * k + l * l) / (2.f * sqs));
+                    float mag = expf(-(k * k + l * l) / (2.f * sqs));
                     cdx *= mag;
                     cdy *= mag;
                     ha += cdx * cdx;
@@ -370,66 +368,181 @@ GImage prepareEdges(const GImage &source, EdgeType edge, int r)
 gdvector getDescriptors(const GImage &img, const poivec &vpoi)
 {
     gdvector ret;
-    ret.reserve(vpoi.size());
+    ret.reserve(vpoi.size() * 2);
     
     int width = img.width;
-//    int height = img.height;
-    int r = 4;
-    int cwidth = width + r * 2;
-//    int cheight = height + r * 2;
-    GImage wimg = prepareEdges(img, EdgeType_BorderCopy, r);
+    const int DRAD = 4;
+    const int DBOXES = 2;
+    const int BDIRS = 8;
+    int cwidth = width + DRAD * 2;
+    GImage wimg = prepareEdges(img, EdgeType_BorderCopy, DRAD);
     
     GImage sx = getSobelX().apply(wimg, EdgeType_BorderCopy);
     GImage sy = getSobelY().apply(wimg, EdgeType_BorderCopy);
     
+    const int ABCOUNT = 36;
+    
+    float sqs = DRAD / 2.;
+    sqs *= sqs;
+    vector<int> dirs;
+    dirs.reserve(2);
+    float angBoxes[ABCOUNT];
+    
     for (int i = 0; i < int(vpoi.size()); i++) {
-        int bx = get<0>(vpoi[i]) + r;
-        int by = get<1>(vpoi[i]) + r;
-        int curBox = 0;
+        int bx = get<0>(vpoi[i]) + DRAD;
+        int by = get<1>(vpoi[i]) + DRAD;
         gdescriptor cdesc;
-        get<1>(cdesc) = bx - r;
-        get<2>(cdesc) = by - r;
+        get<1>(cdesc) = bx - DRAD;
+        get<2>(cdesc) = by - DRAD;
         float* dv = get<0>(cdesc);
-        for (int cy = -1; cy < 1; cy++) {
-            for (int cx = -1; cx < 1; cx++) {
-                int qy = by + cy * 4 + 1;
-                int qx = bx + cx * 4 + 1;
+        fill(begin(angBoxes), end(angBoxes), 0.);
+        
+        for (int cy = -DRAD; cy <= DRAD; cy++) {
+            for (int cx = -DRAD; cx <= DRAD; cx++) {
+                if (cy * cy + cx * cx > DRAD * DRAD)
+                    continue;
+                int qy = by + cy;
+                int qx = bx + cx;
+                float dy = sy.a[qy * cwidth + qx];
+                float dx = sx.a[qy * cwidth + qx];
                 
-                for (int gy = 0; gy < 4; gy++) {
-                    for (int gx = 0; gx < 4; gx++) {
-                        int y = qy + gy;
-                        int x = qx + gx;
-                        float dy = sy.a[y * cwidth + x];
-                        float dx = sx.a[y * cwidth + x];
-                        float fi = atan2f(dy, dx) + M_PI;
-                        float len = sqrtf(dy * dy + dx * dx);
-                        
-                        float alph = fi * 4. / M_PI;
-                        int drcn = int(alph);
-                        int drnx = drcn + 1;
-                        if (drnx == 8)
-                            drnx = 0;
-                        
-                        float weight = alph - drcn;
-                        
-                        dv[curBox * 8 + drcn] += len * (1 - weight);
-                        dv[curBox * 8 + drnx] += len * weight;
-                    }
+                float fi = atan2f(-dy, dx) + M_PI;
+                float len = sqrtf(dy * dy + dx * dx);
+                len *= expf(-(cy * cy + cx * cx) / (2.f * sqs));
+                
+                float alph = fi * ABCOUNT * 0.5f / M_PI;
+                int drcn = int(alph);
+                int drnx = drcn + 1;
+                if (drnx == ABCOUNT)
+                    drnx = 0;
+                
+                float weight = alph - drcn;
+                
+                angBoxes[drcn] += len * (1 - weight);
+                angBoxes[drnx] += len * weight;
+                
+            }
+        }
+        
+        dirs.clear();
+        int maxId = 0;
+        for (int j = 1; j < ABCOUNT; j++) {
+            if (angBoxes[j] > angBoxes[maxId])
+                maxId = j;
+        }
+        dirs.push_back(maxId);
+        maxId = (maxId + 1) % ABCOUNT;
+        for (int j = 0; j < ABCOUNT; j++) {
+            if (j != dirs[0] && angBoxes[j] > angBoxes[maxId])
+                maxId = j;
+        }
+        if (angBoxes[maxId] >= angBoxes[dirs[0]] * 0.8)
+            dirs.push_back(maxId);
+        
+        for (size_t j = 0; j < dirs.size(); j++) {
+            
+            int x2 = dirs[j];
+            int x1 = (x2 + ABCOUNT - 1) % ABCOUNT;
+            int x3 = (x2 + 1) % ABCOUNT;
+            float y1 = angBoxes[x1];
+            float y2 = angBoxes[x2];
+            float y3 = angBoxes[x3];
+            
+            if (y2 < y1 || y2 < y3)
+                continue;
+            
+            float ax[] = {float(x2 - 1), float(x2), float(x2 + 1)};
+            float ay[] = {y1, y2, y3};
+            
+            float q1[3] = {y1, 0, 0};
+            float q2[3];
+            
+            for (int c1 = 1; c1 < 3; c1++) {
+                float co = 1.f;
+                for (int c2 = 0; c2 < c1; c2++) {
+                    co *= (ax[c1] - ax[c2]);
                 }
-                curBox++;
+                float cur = ax[c1] * (ax[c1] * q1[2] + q1[1]) + q1[0];
+                co = (ay[c1] - cur) / co;
+                fill(begin(q2), end(q2), 0.f);
+                q2[0] = 1;
+                for (int c2 = 0; c2 < c1; c2++) {
+                    float z = 0;
+                    for (int c3 = 0; c3 <= c2; c3++) {
+                        float nx = q2[c3];
+                        q2[c3] = z - (nx * ax[c2]);
+                        z = nx;
+                    }
+                    q2[c2 + 1] = z;
+                }
+                for (int c2 = 0; c2 < 3; c2++)
+                    q1[c2] += q2[c2] * co;
             }
+            
+            float rtx = -q1[1] / (2.f * q1[2]);
+            if (rtx < 0)
+                rtx += ABCOUNT;
+            
+            float ran = float(M_PI) * 2.f * (rtx) / ABCOUNT;
+            get<3>(cdesc) = ran;
+            
+            float rsin = sinf(ran);
+            float rcos = cosf(ran);
+            
+            for (int cy = -DRAD; cy <= DRAD; cy++) {
+                for (int cx = -DRAD; cx <= DRAD; cx++) {
+                    if (cy * cy + cx * cx > DRAD * DRAD)
+                        continue;
+                    int y = by + cy;
+                    int x = bx + cx;
+                    
+                    float dy = sy.a[y * cwidth + x];
+                    float dx = sx.a[y * cwidth + x];
+                    float fi = (atan2f(-dy, dx) + M_PI) - ran;
+                    if (fi < 0.)
+                        fi += M_PI * 2.;
+                    float len = sqrtf(dy * dy + dx * dx);
+                    len *= expf(-(cy * cy + cx * cx) / (2.f * sqs));
+                    
+                    float alph = fi * BDIRS * .5 / M_PI;
+                    int drcn = int(alph);
+                    int drnx = drcn + 1;
+                    if (drnx == BDIRS)
+                        drnx = 0;
+                    
+                    float weight = alph - drcn;
+                    
+                    float qy = -((-cy) * rcos - (cx) * rsin);
+                    float qx = (cx) * rcos + (-cy) * rsin;
+                    int ybox = int((qy - 0.5f + DRAD) / DBOXES);
+                    int xbox = int((qx - 0.5f + DRAD) / DBOXES);
+                    if (ybox < 0)
+                        ybox = 0;
+                    if (ybox >= DBOXES)
+                        ybox = DBOXES - 1;
+                    if (xbox < 0)
+                        xbox = 0;
+                    if (xbox >= DBOXES)
+                        xbox = DBOXES - 1;
+                    
+                    dv[(ybox * DBOXES + xbox) * BDIRS + drcn] += 
+                            len * (1 - weight);
+                    dv[(ybox * DBOXES + xbox) * BDIRS + drnx] += 
+                            len * weight;
+                }
+            }
+            for (int box = 0; box < DBOXES * DBOXES; box++) {
+                float len = 0.;
+                for (int j = 0; j < BDIRS; j++) {
+                    len = max(len, dv[box * BDIRS + j]);
+                }
+                len += 1e-50;
+                for (int j = 0; j < BDIRS; j++) {
+                    dv[box * BDIRS + j] /= len;
+                }
+            }
+            ret.push_back(cdesc);
         }
-        for (int box = 0; box < 4; box++) {
-            float len = 0.;
-            for (int j = 0; j < 8; j++) {
-                len = max(len, dv[box * 8 + j]);
-            }
-            len += 1e-5;
-            for (int j = 0; j < 8; j++) {
-                dv[box * 8 + j] /= len;
-            }
-        }
-        ret.push_back(cdesc);
     }
     
     return ret;

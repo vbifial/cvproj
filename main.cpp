@@ -22,12 +22,12 @@ int main(int argc, char *argv[])
     
 //    GPyramid pyr(gimg, 1.6, .5, 4);
     
-    auto har1 = getHarris(gimg, 2, 2, 1e-100);
+    auto har1 = getHarris(gimg, 2, 2, 1e-20);
     cout << "Harris 1: " << har1.size() << endl;
     har1 = anms(har1, 200, .1);
     cout << "anms 1: " << har1.size() << endl;
     
-    auto har2 = getHarris(gimg2, 2, 2, 1e-100);
+    auto har2 = getHarris(gimg2, 2, 2, 1e-20);
     cout << "Harris 2: " << har2.size() << endl;
     har2 = anms(har2, 200, .1);
     cout << "anms 2: " << har2.size() << endl;
@@ -42,7 +42,8 @@ int main(int argc, char *argv[])
     auto desc2 = getDescriptors(gimg2, har2);
     cout << "desc 2: " << desc2.size() << endl;
     
-    auto matches = getMatches(desc1, desc2, 1e0);
+//    auto matches = getMatches(desc1, desc2, 7e-1);
+    auto matches = getMatches(desc1, desc2, 1e2);
     cout << "matches : " << matches.size() << endl;
     
     QImage out = drawMatches(gimg, gimg2, desc1, desc2, matches);
