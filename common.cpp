@@ -371,16 +371,16 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
     ret.reserve(vpoi.size() * 2);
     
     int width = img.width;
-    const int DRAD = 4;
-    const int DBOXES = 2;
-    const int BDIRS = 8;
+    const int DRAD = 4; // descriptor`s radius
+    const int DBOXES = 2; // boxes quantity per dimension
+    const int BDIRS = 8; // directions quantity in box
     int cwidth = width + DRAD * 2;
     GImage wimg = prepareEdges(img, EdgeType_BorderCopy, DRAD);
     
     GImage sx = getSobelX().apply(wimg, EdgeType_BorderCopy);
     GImage sy = getSobelY().apply(wimg, EdgeType_BorderCopy);
     
-    const int ABCOUNT = 36;
+    const int ABCOUNT = 36; // directions quantity for orientation
     
     float sqs = DRAD / 2.;
     sqs *= sqs;
@@ -397,6 +397,7 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
         float* dv = get<0>(cdesc);
         fill(begin(angBoxes), end(angBoxes), 0.);
         
+        // orientation search
         for (int cy = -DRAD; cy <= DRAD; cy++) {
             for (int cx = -DRAD; cx <= DRAD; cx++) {
                 if (cy * cy + cx * cx > DRAD * DRAD)
@@ -424,6 +425,7 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
             }
         }
         
+        // maximum`s selection
         dirs.clear();
         int maxId = 0;
         for (int j = 1; j < ABCOUNT; j++) {
@@ -431,6 +433,7 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
                 maxId = j;
         }
         dirs.push_back(maxId);
+        // second maximum`s selection
         maxId = (maxId + 1) % ABCOUNT;
         for (int j = 0; j < ABCOUNT; j++) {
             if (j != dirs[0] && angBoxes[j] > angBoxes[maxId])
@@ -441,6 +444,7 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
         
         for (size_t j = 0; j < dirs.size(); j++) {
             
+            // interpolation init
             int x2 = dirs[j];
             int x1 = (x2 + ABCOUNT - 1) % ABCOUNT;
             int x3 = (x2 + 1) % ABCOUNT;
@@ -454,9 +458,10 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
             float ax[] = {float(x2 - 1), float(x2), float(x2 + 1)};
             float ay[] = {y1, y2, y3};
             
-            float q1[3] = {y1, 0, 0};
-            float q2[3];
+            float q1[3] = {y1, 0, 0}; // current coeffs
+            float q2[3]; // additional coeffs
             
+            // parabolic angle interpolation
             for (int c1 = 1; c1 < 3; c1++) {
                 float co = 1.f;
                 for (int c2 = 0; c2 < c1; c2++) {
@@ -479,6 +484,7 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
                     q1[c2] += q2[c2] * co;
             }
             
+            // resulting orientation
             float rtx = -q1[1] / (2.f * q1[2]);
             if (rtx < 0)
                 rtx += ABCOUNT;
@@ -489,6 +495,7 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
             float rsin = sinf(ran);
             float rcos = cosf(ran);
             
+            // 
             for (int cy = -DRAD; cy <= DRAD; cy++) {
                 for (int cx = -DRAD; cx <= DRAD; cx++) {
                     if (cy * cy + cx * cx > DRAD * DRAD)
@@ -512,8 +519,10 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
                     
                     float weight = alph - drcn;
                     
+                    // getting normalized coorditates
                     float qy = -((-cy) * rcos - (cx) * rsin);
                     float qx = (cx) * rcos + (-cy) * rsin;
+                    // box`s selection
                     int ybox = int((qy - 0.5f + DRAD) / DBOXES);
                     int xbox = int((qx - 0.5f + DRAD) / DBOXES);
                     if (ybox < 0)
@@ -531,6 +540,7 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
                             len * weight;
                 }
             }
+            // independent normalization
             for (int box = 0; box < DBOXES * DBOXES; box++) {
                 float len = 0.;
                 for (int j = 0; j < BDIRS; j++) {

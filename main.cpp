@@ -42,8 +42,8 @@ int main(int argc, char *argv[])
     auto desc2 = getDescriptors(gimg2, har2);
     cout << "desc 2: " << desc2.size() << endl;
     
-//    auto matches = getMatches(desc1, desc2, 7e-1);
-    auto matches = getMatches(desc1, desc2, 1e2);
+    auto matches = getMatches(desc1, desc2, 7e-1);
+//    auto matches = getMatches(desc1, desc2, 1e2);
     cout << "matches : " << matches.size() << endl;
     
     QImage out = drawMatches(gimg, gimg2, desc1, desc2, matches);
