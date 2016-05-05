@@ -1,6 +1,7 @@
 #include "common.h"
 #include "gconvol.h"
 #include "gimage.h"
+#include "gpyramid.h"
 
 float fromRGB(int color) {
     float ret = 0;
@@ -610,6 +611,18 @@ void drawLine(QImage &img, int x1, int y1, int x2, int y2, int color)
     }
 }
 
+void drawCircle(QImage &img, int x, int y, float r, int color)
+{
+    float dlt = 1 / (r * 12.f);
+    
+    for (float i = 0.; i <= 1.; i += dlt) {
+        int x1 = int(roundf(cosf(i * M_PI * 2.f) * r + x));
+        int y1 = int(roundf(sinf(i * M_PI * 2.f) * r + y));
+        if (x1 > -1 && y1 > -1 && x1 < img.width() && y1 < img.height())
+            img.setPixel(x1, y1, color);
+    }
+}
+
 QImage drawPoints(const GImage &img, poivec &vpoi)
 {
     QImage ret = img.convert();
@@ -652,5 +665,98 @@ QImage drawMatches(const GImage &gimg, const GImage &gimg2, gdvector &desc1, gdv
         drawLine(ret, get<1>(l), get<2>(l), 
                  get<1>(r) + gimg.width, get<2>(r), color);
     }
+    return ret;
+}
+
+QImage drawBlobs(const GImage &img, poivec blobs)
+{
+    uniform_int_distribution<uint32_t> uint_dist(0, (1 << 24) - 1);
+    mt19937 rnd;
+    
+    QImage ret(img.width, img.height, QImage::Format_RGB32);
+    
+    for (int i = 0; i < img.height; i++) {
+        for (int j = 0; j < img.width; j++) {
+            ret.setPixel(j, i, toRGB(img.a[i * img.width + j]));
+        }
+    }
+    
+    for (uint i = 0; i  < blobs.size(); i++) {
+        int color = uint_dist(rnd);
+        
+        drawCircle(ret, get<0>(blobs[i]), get<1>(blobs[i]), 
+                 get<2>(blobs[i]), color);
+    }
+    return ret;
+}
+
+poivec getBlobs(GPyramid &pyr)
+{
+    poivec ret;
+    ret.reserve(pyr.height * pyr.width);
+    
+    GPyramid doG = pyr.getDOG();
+    
+    int dirs = 9;
+    int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1, 0};
+    int dy[] = {1, 0, -1, 1, -1, 1, 0, -1, 0};
+    
+    for (int i = 0; i < doG.ocnt; i++) {
+        for (int j = ((i == 0) ? 1 : 0); 
+             j < doG.olayers - (i == doG.ocnt - 1 ? 1 : 0); j++) {
+            int lId = i * (doG.olayers + 1) + j;
+            GImage& cur = doG.a[lId];
+            GImage& prv = doG.a[lId - 1];
+            GImage& nxt = doG.a[lId + 1];
+            
+            for (int y = 1; y < cur.height - 1; y++) {
+                for (int x = 1; x < cur.width - 1; x++) {
+                    float val = cur.a[y * cur.width + x];
+                    bool extMax = val > 0.f;
+                    bool extMin = val < 0.f;
+                    
+                    for (int k = 0; k < dirs - 1; k++) {
+                        float cval = cur.a[(y + dy[k]) * cur.width + x + dx[k]];
+                        if (cval <= val)
+                            extMin = false;
+                        if (cval >= val)
+                            extMax = false;
+                    }
+                    
+                    for (int k = 0; k < dirs; k++) {
+                        float cval = nxt.a[(y + dy[k]) * cur.width + x + dx[k]];
+                        if (cval <= val)
+                            extMin = false;
+                        if (cval >= val)
+                            extMax = false;
+                    }
+                    int cy = y;
+                    int cx = x;
+                    if (j == 0) {
+                        cy = cy * 2 - 1;
+                        cx = cx * 2 - 1;
+                    }
+                    
+                    for (int k = 0; k < dirs; k++) {
+                        float cval = prv.a[(cy + dy[k]) * cur.width + cx + dx[k]];
+                        if (cval <= val)
+                            extMin = false;
+                        if (cval >= val)
+                            extMax = false;
+                    }
+                    
+                    if (extMax || extMin) {
+                        int cx = x << i;
+                        int cy = y << i;
+                        float sg = exp2f(float(i * (doG.olayers - 1) + j) / 
+                                       (doG.olayers - 1));
+                        ret.push_back(make_tuple(cx, cy, sg));
+                    }
+                }
+            }
+            
+        }
+    }
+    
     return ret;
 }

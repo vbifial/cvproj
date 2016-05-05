@@ -33,6 +33,7 @@ public:
         return *this;
     }
     
+    GPyramid getDOG();
 };
 
 #endif // GPYRAMID_H
