@@ -717,8 +717,8 @@ poivec getBlobs(GPyramid &pyr)
     int dy[] = {1, 0, -1, 1, -1, 1, 0, -1, 0};
     
     for (int i = 0; i < doG.ocnt; i++) {
-        for (int j = 0; j < doG.olayers - 1; j++) {
-            int lId = i * (doG.olayers + 1) + j + 1;
+        for (int j = (i == 0 ? 1 : 0); j < doG.olayers; j++) {
+            int lId = i * (doG.olayers + 2) + j;
             GImage& cur = doG.a[lId];
             GImage& prv = doG.a[lId - 1];
             GImage& nxt = doG.a[lId + 1];
@@ -748,8 +748,8 @@ poivec getBlobs(GPyramid &pyr)
                         poi p;
                         p.x = x << i;
                         p.y = y << i;
-                        p.scale = exp2f(float(i * (doG.olayers - 1) + j) / 
-                                        (doG.olayers - 1)) * pyr.sbase;
+                        p.scale = exp2f(float(i * (doG.olayers) + j) / 
+                                        (doG.olayers)) * pyr.sbase;
                         ret.push_back(p);
                     }
                 }
@@ -776,8 +776,8 @@ poivec getDOGDetection(const GImage &img)
 //    int shifts = 0; // debug
     
     for (int i = 0; i < doG.ocnt; i++) {
-        for (int j = 0; j < doG.olayers - 1; j++) {
-            int lId = i * (doG.olayers + 1) + j + 1;
+        for (int j = (i == 0 ? 1 : 0); j < doG.olayers; j++) {
+            int lId = i * (doG.olayers + 2) + j;
             GImage& cur = doG.a[lId];
             GImage& prv = doG.a[lId - 1];
             GImage& nxt = doG.a[lId + 1];
@@ -815,8 +815,8 @@ poivec getDOGDetection(const GImage &img)
                     if (extMax || extMin) {
                         int cx = x;
                         int cy = y;
-                        float sg = exp2f(float(i * (doG.olayers - 1) + j) / 
-                                       (doG.olayers - 1)) * pyr.sbase;
+                        float sg = exp2f(float(i * (doG.olayers) + j) / 
+                                       (doG.olayers)) * pyr.sbase;
                         
                         float cdx, cdy, ha, hb, hc, det, trace, gx, gy;
                         float cdx2, cdy2, cdxy;
@@ -861,7 +861,7 @@ poivec getDOGDetection(const GImage &img)
                         // filtering edges
                         if (trace * trace / det > (EDGE_R + 1) * (EDGE_R + 1) / EDGE_R)
                             continue;
-                        gx = gy = 0;
+//                        gx = gy = 0;
                         poi p;
                         p.x = (cx + gx) * (1 << i);
                         p.y = (cy + gy) * (1 << i);
