@@ -25,7 +25,8 @@ GConvol getSobelX()
 {
     GConvol ret;
     ret.r = 1;
-    ret.a = unique_ptr<float[]>(new float[9] {-1, 0, 1, -2, 0, 2, -1, 0, 1});
+    ret.a = unique_ptr<float[]>(new float[9] {-1.f / 8, 0, 1.f / 8, 
+            -2.f / 8, 0, 2.f / 8, -1.f / 8, 0, 1.f / 8});
     return ret;
 }
 
@@ -33,7 +34,8 @@ GConvol getSobelY()
 {
     GConvol ret;
     ret.r = 1;
-    ret.a = unique_ptr<float[]>(new float[9] {-1, -2, -1, 0, 0, 0, 1, 2, 1});
+    ret.a = unique_ptr<float[]>(new float[9] {-1.f / 8, -2.f / 8, 
+            -1.f / 8, 0, 0, 0, 1.f / 8, 2.f / 8, 1.f / 8});
     return ret;
 }
 
@@ -143,7 +145,11 @@ poivec getMoravec(const GImage &img, int wrad, int mrad, float thres)
                 }
             }
             if (o && op[i * img.width + j] > thres) {
-                ret.push_back(make_tuple(j, i, op[i * img.width + j]));
+                poi p;
+                p.x = j;
+                p.y = i;
+                p.function = op[i * img.width + j];
+                ret.push_back(p);
             }
         }
     }
@@ -185,7 +191,9 @@ poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k)
                     hc += cdy * cdy;
                 }
             }
-            lm[i * img.width + j] = ha * hc - hb * hb - _k * (ha + hc);
+            float det = ha * hc - hb * hb;
+            float trace = (ha + hc);
+            lm[i * img.width + j] = det - _k * trace * trace;
         }
     }
     
@@ -203,18 +211,25 @@ poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k)
                         break;
                 }
             }
+//            if (o)
+//                cout << lm[i * img.width + j] << endl;
             if (o && lm[i * img.width + j] > thres) {
-                ret.push_back(make_tuple(j, i, lm[i * img.width + j]));
+                poi p;
+                p.x = j;
+                p.y = i;
+                p.function = lm[i * img.width + j];
+                p.scale = 1.f;
+                ret.push_back(p);
             }
         }
     }
     
-//    GImage q(img.width, img.height);
-//    for (int i = 0; i < q.height; i++)
-//        for (int j = 0; j < q.width; j++)
-//            q.a[i * q.width + j] = sqrtf(lm[i * img.width + j]);
-//    q.normalizeMinMax();
-//    q.save("xhar.jpg");
+    GImage q(img.width, img.height);
+    for (int i = 0; i < q.height; i++)
+        for (int j = 0; j < q.width; j++)
+            q.a[i * q.width + j] = sqrtf(lm[i * img.width + j]);
+    q.normalizeMinMax();
+    q.save("xhar.jpg");
     
     return ret;
 }
@@ -235,10 +250,10 @@ poivec anms(poivec &in, int target, float diff) {
             bool o = true;
             for (uint j = 0; j < in.size(); j++) {
                 if (i != j) {
-                    float dx = get<0>(in[i]) - get<0>(in[j]);
-                    float dy = get<1>(in[i]) - get<1>(in[j]);
+                    float dx = in[i].x - in[j].x;
+                    float dy = in[i].y - in[j].y;
                     float dist = dx * dx + dy * dy;
-                    if (dist < m * m && get<2>(in[i]) <= get<2>(in[j])) {
+                    if (dist < m * m && in[i].function <= in[j].function) {
                         o = false;
                         break;
                     }
@@ -390,8 +405,8 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
     float angBoxes[ABCOUNT];
     
     for (int i = 0; i < int(vpoi.size()); i++) {
-        int bx = get<0>(vpoi[i]) + DRAD;
-        int by = get<1>(vpoi[i]) + DRAD;
+        int bx = vpoi[i].x + DRAD;
+        int by = vpoi[i].y + DRAD;
         gdescriptor cdesc;
         get<1>(cdesc) = bx - DRAD;
         get<2>(cdesc) = by - DRAD;
@@ -627,7 +642,7 @@ QImage drawPoints(const GImage &img, poivec &vpoi)
 {
     QImage ret = img.convert();
     for (uint i = 0; i < vpoi.size(); i++) {
-        mark(ret, get<0>(vpoi[i]), get<1>(vpoi[i]));
+        mark(ret, vpoi[i].x, vpoi[i].y);
     }
     return ret;
 }
@@ -684,8 +699,8 @@ QImage drawBlobs(const GImage &img, poivec blobs)
     for (uint i = 0; i  < blobs.size(); i++) {
         int color = uint_dist(rnd);
         
-        drawCircle(ret, get<0>(blobs[i]), get<1>(blobs[i]), 
-                 get<2>(blobs[i]), color);
+        drawCircle(ret, blobs[i].x, blobs[i].y, 
+                 blobs[i].scale, color);
     }
     return ret;
 }
@@ -702,12 +717,12 @@ poivec getBlobs(GPyramid &pyr)
     int dy[] = {1, 0, -1, 1, -1, 1, 0, -1, 0};
     
     for (int i = 0; i < doG.ocnt; i++) {
-        for (int j = ((i == 0) ? 1 : 0); 
-             j < doG.olayers - (i == doG.ocnt - 1 ? 1 : 0); j++) {
-            int lId = i * (doG.olayers + 1) + j;
+        for (int j = 0; j < doG.olayers - 1; j++) {
+            int lId = i * (doG.olayers + 1) + j + 1;
             GImage& cur = doG.a[lId];
             GImage& prv = doG.a[lId - 1];
             GImage& nxt = doG.a[lId + 1];
+            GImage* imgs[] = {&cur, &prv, &nxt};
             
             for (int y = 1; y < cur.height - 1; y++) {
                 for (int x = 1; x < cur.width - 1; x++) {
@@ -715,42 +730,27 @@ poivec getBlobs(GPyramid &pyr)
                     bool extMax = val > 0.f;
                     bool extMin = val < 0.f;
                     
-                    for (int k = 0; k < dirs - 1; k++) {
-                        float cval = cur.a[(y + dy[k]) * cur.width + x + dx[k]];
-                        if (cval <= val)
-                            extMin = false;
-                        if (cval >= val)
-                            extMax = false;
-                    }
-                    
-                    for (int k = 0; k < dirs; k++) {
-                        float cval = nxt.a[(y + dy[k]) * cur.width + x + dx[k]];
-                        if (cval <= val)
-                            extMin = false;
-                        if (cval >= val)
-                            extMax = false;
-                    }
-                    int cy = y;
-                    int cx = x;
-                    if (j == 0) {
-                        cy = cy * 2 - 1;
-                        cx = cx * 2 - 1;
-                    }
-                    
-                    for (int k = 0; k < dirs; k++) {
-                        float cval = prv.a[(cy + dy[k]) * cur.width + cx + dx[k]];
-                        if (cval <= val)
-                            extMin = false;
-                        if (cval >= val)
-                            extMax = false;
+                    // checking extremum
+                    int cdirs = dirs - 1;
+                    for (int cimg = 0; cimg < 3; cimg++) {
+                        for (int k = 0; k < cdirs; k++) {
+                            float cval = imgs[cimg]->
+                                    a[(y + dy[k]) * cur.width + x + dx[k]];
+                            if (cval <= val)
+                                extMin = false;
+                            if (cval >= val)
+                                extMax = false;
+                        }
+                        cdirs = dirs;
                     }
                     
                     if (extMax || extMin) {
-                        int cx = x << i;
-                        int cy = y << i;
-                        float sg = exp2f(float(i * (doG.olayers - 1) + j) / 
-                                       (doG.olayers - 1));
-                        ret.push_back(make_tuple(cx, cy, sg));
+                        poi p;
+                        p.x = x << i;
+                        p.y = y << i;
+                        p.scale = exp2f(float(i * (doG.olayers - 1) + j) / 
+                                        (doG.olayers - 1)) * pyr.sbase;
+                        ret.push_back(p);
                     }
                 }
             }
@@ -758,5 +758,248 @@ poivec getBlobs(GPyramid &pyr)
         }
     }
     
+    return ret;
+}
+
+poivec getDOGDetection(const GImage &img)
+{
+    poivec ret;
+    GPyramid pyr(img, 1.6, 0.5, 7);
+    ret.reserve(pyr.height * pyr.width);
+    
+    GPyramid doG = pyr.getDOG();
+    
+    int dirs = 9;
+    int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1, 0};
+    int dy[] = {1, 0, -1, 1, -1, 1, 0, -1, 0};
+    const float EDGE_R = 10.f;
+//    int shifts = 0; // debug
+    
+    for (int i = 0; i < doG.ocnt; i++) {
+        for (int j = 0; j < doG.olayers - 1; j++) {
+            int lId = i * (doG.olayers + 1) + j + 1;
+            GImage& cur = doG.a[lId];
+            GImage& prv = doG.a[lId - 1];
+            GImage& nxt = doG.a[lId + 1];
+            GImage* imgs[] = {&cur, &prv, &nxt};
+            
+            GConvol sx = getSobelX();
+            GConvol sy = getSobelY();
+            GImage sdx = sx.apply(cur, EdgeType_BorderCopy);
+            GImage sdy = sy.apply(cur, EdgeType_BorderCopy);
+            GImage sdx2 = sx.apply(sdx, EdgeType_BorderCopy);
+            GImage sdy2 = sy.apply(sdy, EdgeType_BorderCopy);
+            GImage sdxy = sx.apply(sdy, EdgeType_BorderCopy);
+            
+            for (int y = 1; y < cur.height - 1; y++) {
+                for (int x = 1; x < cur.width - 1; x++) {
+                    float val = cur.a[y * cur.width + x];
+                    bool extMax = val > 0.f;
+                    bool extMin = val < 0.f;
+                    
+                    // checking extremum
+                    int cdirs = dirs - 1;
+                    for (int cimg = 0; cimg < 3; cimg++) {
+                        for (int k = 0; k < cdirs; k++) {
+                            float cval = imgs[cimg]->
+                                    a[(y + dy[k]) * cur.width + x + dx[k]];
+                            if (cval <= val)
+                                extMin = false;
+                            if (cval >= val)
+                                extMax = false;
+                        }
+                        cdirs = dirs;
+                    }
+                    
+                    // processing extremum
+                    if (extMax || extMin) {
+                        int cx = x;
+                        int cy = y;
+                        float sg = exp2f(float(i * (doG.olayers - 1) + j) / 
+                                       (doG.olayers - 1)) * pyr.sbase;
+                        
+                        float cdx, cdy, ha, hb, hc, det, trace, gx, gy;
+                        float cdx2, cdy2, cdxy;
+//                        cout << cx << " " << cy << endl;
+                        
+                        // adjusting position
+                        while (true) {
+                            cdx = sdx.a[cy * sdx.width + cx];
+                            cdy = sdy.a[cy * sdx.width + cx];
+                            cdx2 = sdx2.a[cy * sdx.width + cx];
+                            cdy2 = sdy2.a[cy * sdx.width + cx];
+                            cdxy = sdxy.a[cy * sdx.width + cx];
+//                            cout << "diff " << cdx << " " << cdy << endl;
+                            ha = cdx2;
+                            hb = cdxy;
+                            hc = cdy2;
+//                            cout << ha << " " << hb << " " << hc << endl;
+                            det = ha * hc - hb * hb;
+//                            cout << "det " << det << endl;
+                            trace = (ha + hc);
+                            gx = (hb * cdy - hc * cdx) / det;
+                            gy = (hb * cdx - ha * cdy) / det;
+                            if (fabsf(gx) < 0.5f && fabsf(gy) < 0.5f)
+                                break;
+//                            cout << cx << " " << cy << endl;
+//                            cout << "shift " << gx << " " << gy << endl;
+                            // TODO
+                            // debug
+//                            if (fabsf(gx) > 1.f && fabsf(gy) > 1.f)
+//                                shifts++;
+                            break;
+                            if (fabsf(gx) >= 0.5f)
+                                cx += (gx > 0) ? 1 : -1;
+                            if (fabsf(gy) >= 0.5f)
+                                cy += (gy > 0) ? 1 : -1;
+                        }
+                        float nd = cur.a[cy * cur.width + cx] + 
+                                gx * cdx / 2.f + gy * cdy / 2.f;
+                        // filtering low-contrast points
+                        if (fabs(nd) < 0.03f)
+                            continue;
+                        // filtering edges
+                        if (trace * trace / det > (EDGE_R + 1) * (EDGE_R + 1) / EDGE_R)
+                            continue;
+                        gx = gy = 0;
+                        poi p;
+                        p.x = (cx + gx) * (1 << i);
+                        p.y = (cy + gy) * (1 << i);
+                        p.scale = sg;
+                        ret.push_back(p);
+                    }
+                }
+            }
+        }
+    }
+    // debug
+//    cout << "shifts " << shifts << endl;
+    
+    return ret;
+}
+
+poivec calculateOrientations(GImage &img, poivec &vpoi)
+{
+    poivec ret;
+    ret.reserve(vpoi.size() * 2);
+    int width = img.width;
+    int mrad = 0;
+    for (size_t i = 0; i < vpoi.size(); i++)
+        mrad = max(mrad, int(ceilf(vpoi[i].scale * 3.f)));
+    
+    int cwidth = width + mrad * 2;
+    GImage wimg = prepareEdges(img, EdgeType_BorderCopy, mrad);
+    
+    GImage sx = getSobelX().apply(wimg, EdgeType_BorderCopy);
+    GImage sy = getSobelY().apply(wimg, EdgeType_BorderCopy);
+    
+    const int ABCOUNT = 36; // directions quantity for orientation
+    
+    vector<int> dirs;
+    dirs.reserve(2);
+    float angBoxes[ABCOUNT];
+    
+    for (int i = 0; i < int(vpoi.size()); i++) {
+        poi cur = vpoi[i];
+        int bx = roundf(cur.x) + mrad;
+        int by = roundf(cur.y) + mrad;
+        fill(begin(angBoxes), end(angBoxes), 0.);
+        
+        int crad = int(ceilf(cur.scale * 3.f));
+        float sqs = cur.scale * 1.5f;
+        sqs *= sqs;
+        
+        // orientation search
+        for (int cy = -crad; cy <= crad; cy++) {
+            for (int cx = -crad; cx <= crad; cx++) {
+                if (cy * cy + cx * cx > crad * crad)
+                    continue;
+                int qy = by + cy;
+                int qx = bx + cx;
+                float dy = sy.a[qy * cwidth + qx];
+                float dx = sx.a[qy * cwidth + qx];
+                
+                float fi = atan2f(-dy, dx) + M_PI;
+                float len = sqrtf(dy * dy + dx * dx);
+                len *= expf(-(cy * cy + cx * cx) / (2.f * sqs));
+                
+                float alph = fi * ABCOUNT * 0.5f / M_PI;
+                int drcn = int(alph);
+                int drnx = (drcn + 1) % ABCOUNT;
+                
+                float weight = alph - drcn;
+                angBoxes[drcn] += len * (1 - weight);
+                angBoxes[drnx] += len * weight;
+                
+            }
+        }
+        
+        // maximum`s selection
+        dirs.clear();
+        int maxId = 0;
+        for (int j = 1; j < ABCOUNT; j++) {
+            if (angBoxes[j] > angBoxes[maxId])
+                maxId = j;
+        }
+        dirs.push_back(maxId);
+        // second maximum`s selection
+        maxId = (maxId + 1) % ABCOUNT;
+        for (int j = 0; j < ABCOUNT; j++) {
+            if (j != dirs[0] && angBoxes[j] > angBoxes[maxId])
+                maxId = j;
+        }
+        if (angBoxes[maxId] >= angBoxes[dirs[0]] * 0.8f)
+            dirs.push_back(maxId);
+        
+        for (size_t j = 0; j < dirs.size(); j++) {
+            
+            // interpolation init
+            int x2 = dirs[j];
+            int x1 = (x2 + ABCOUNT - 1) % ABCOUNT;
+            int x3 = (x2 + 1) % ABCOUNT;
+            float y1 = angBoxes[x1];
+            float y2 = angBoxes[x2];
+            float y3 = angBoxes[x3];
+            if (y2 < y1 || y2 < y3)
+                continue;
+            
+            float ax[] = {float(x2 - 1), float(x2), float(x2 + 1)};
+            float ay[] = {y1, y2, y3};
+            
+            float q1[3] = {y1, 0, 0}; // current coeffs
+            float q2[3]; // additional coeffs
+            
+            // parabolic angle interpolation
+            for (int c1 = 1; c1 < 3; c1++) {
+                float co = 1.f;
+                for (int c2 = 0; c2 < c1; c2++) {
+                    co *= (ax[c1] - ax[c2]);
+                }
+                float cur = ax[c1] * (ax[c1] * q1[2] + q1[1]) + q1[0];
+                co = (ay[c1] - cur) / co;
+                fill(begin(q2), end(q2), 0.f);
+                q2[0] = 1;
+                for (int c2 = 0; c2 < c1; c2++) {
+                    float z = 0;
+                    for (int c3 = 0; c3 <= c2; c3++) {
+                        float nx = q2[c3];
+                        q2[c3] = z - (nx * ax[c2]);
+                        z = nx;
+                    }
+                    q2[c2 + 1] = z;
+                }
+                for (int c2 = 0; c2 < 3; c2++)
+                    q1[c2] += q2[c2] * co;
+            }
+            
+            // resulting orientation
+            float rtx = -q1[1] / (2.f * q1[2]);
+            if (rtx < 0)
+                rtx += ABCOUNT;
+            
+            cur.orient = float(M_PI) * 2.f * (rtx) / ABCOUNT;
+            ret.push_back(cur);
+        }
+    }
     return ret;
 }

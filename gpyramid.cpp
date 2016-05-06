@@ -6,7 +6,7 @@ GPyramid::GPyramid()
     
 }
 
-GPyramid::GPyramid(GImage &img, float _sbase, float _s0, int _olayers)
+GPyramid::GPyramid(const GImage &img, float _sbase, float _s0, int _olayers)
 {
     int val = min(img.width, img.height);
     ocnt = 1;
@@ -32,9 +32,16 @@ GPyramid::GPyramid(GImage &img, float _sbase, float _s0, int _olayers)
         if (i != 0) {
             GImage& tmp = a[i * (olayers + 1) - 1];
             GImage wrk(cwidth, cheight);
-            for (int y = 0; y < cheight; y++)
-                for (int x = 0; x < cwidth; x++)
-                    wrk.a[y * cwidth + x] = tmp.a[(y * tmp.width + x) * 2];
+            auto count = make_unique<int[]>(cwidth * cheight);
+            fill(&count[0], &count[cwidth * cheight], 0);
+            fill(&wrk.a[0], &wrk.a[cwidth * cheight], 0.f);
+            for (int y = 0; y < tmp.height; y++)
+                for (int x = 0; x < tmp.width; x++) {
+                    wrk.a[(y / 2) * cwidth + x / 2] += tmp.a[y * tmp.width + x];
+                    count[(y / 2) * cwidth + x / 2]++;
+                }
+            for (int k = 0; k < cheight * cwidth; k++)
+                    wrk.a[k] /= count[k]++;
             a[i * (olayers + 1)] = move(wrk);
         }
         
@@ -83,25 +90,52 @@ GPyramid GPyramid::getDOG()
     ret.width = width;
     ret.height = height;
     ret.ocnt = ocnt;
-    ret.olayers = olayers;
-    ret.a = make_unique<GImage[]>((olayers + 1) * ocnt);
+    ret.olayers = olayers + 1;
+    ret.a = make_unique<GImage[]>((olayers + 2) * ocnt);
+    float sdiff = exp2f(1.f / (olayers));
     
     for (int i = 0; i < ocnt; i++) {
         for (int j = 0; j < olayers; j++) {
             GImage& top = a[i * (olayers + 1) + j + 1];
             GImage& bot = a[i * (olayers + 1) + j];
             GImage tmp(top.width, top.height);
+            float div = (sdiff - 1.f);
             for (int y = 0; y < top.height; y++) {
                 for (int x = 0; x < top.width; x++) {
                     int id = y * top.width + x;
-                    tmp.a[id] = top.a[id] - bot.a[id];
+                    tmp.a[id] = (top.a[id] - bot.a[id]) / div;
                 }
             }
-            ret.a[i * (olayers + 1) + j] = move(tmp);
+            ret.a[i * (ret.olayers + 1) + j + 1] = move(tmp);
         }
-        ret.a[(i + 1) * (olayers + 1) - 1] = 
-                ret.a[(i + 1) * (olayers + 1) - 2];
+        if (i != 0) {
+            GImage& prev = ret.a[i * (ret.olayers + 1) - 2];
+            GImage& next = ret.a[i * (ret.olayers + 1) + 1];
+            GImage tmp(prev.width, prev.height);
+            for (int y = 0; y < prev.height; y++)
+                for (int x = 0; x < prev.width; x++)
+                    tmp.a[y * prev.width + x] = 
+                            next.a[y / 2 * next.width + x / 2];
+            ret.a[i * (ret.olayers + 1) - 1] = move(tmp);
+            
+            GImage to(next.width, next.height);
+            auto cnt = make_unique<int[]>(next.width * next.height);
+            fill(&to.a[0], &to.a[to.width * to.height], 0.f);
+            fill(&cnt[0], &cnt[to.width * to.height], 0);
+            for (int y = 0; y < prev.height; y++)
+                for (int x = 0; x < prev.width; x++) {
+                    to.a[(y / 2) * to.width + x / 2] +=
+                            prev.a[y * prev.width + x];
+                    cnt[(y / 2) * to.width + x / 2]++;
+                }
+            for (int y = 0; y < to.width * to.height; y++)
+                to.a[y] /= cnt[y];
+            ret.a[i * (ret.olayers + 1)] = move(to);
+        }
     }
+    ret.a[0] = ret.a[1];
+    ret.a[ret.ocnt * (ret.olayers + 1) - 1] = 
+            ret.a[ret.ocnt * (ret.olayers + 1) - 2];
     
     return ret;
 }

@@ -58,8 +58,8 @@ void GImage::save(const char *filename) {
 
 void GImage::normalizeMinMax()
 {
-    float min = 1e20;
-    float max = -1e20;
+    float min = numeric_limits<float>::max();
+    float max = numeric_limits<float>::min();
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
             float val = a[i * width + j];
@@ -69,7 +69,7 @@ void GImage::normalizeMinMax()
                 max = val;
         }
     }
-    float dlt = max - min + 1e-5;
+    float dlt = max - min + 1e-100;
     
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {

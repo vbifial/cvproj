@@ -16,7 +16,7 @@ public:
     int width;
     int height;
     
-    GPyramid(GImage &img, float _sbase, float _s0, int _olayers);
+    GPyramid(const GImage &img, float _sbase, float _s0, int _olayers);
     
     float L(int x, int y, float sig);
     

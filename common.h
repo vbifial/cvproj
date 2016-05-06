@@ -28,7 +28,16 @@ int getTimeMill();
 class GConvol;
 class GImage;
 class GPyramid;
-typedef vector<tuple<int, int, float> > poivec;
+
+struct poi {
+    float x = 0.f;
+    float y = 0.f;
+    float scale = 0.f;
+    float orient = 0.f;
+    float function = 0.f;
+};
+
+typedef vector<poi> poivec;
 typedef tuple<float[DSIZE], int, int, float> gdescriptor;
 typedef vector<gdescriptor> gdvector;
 
@@ -43,10 +52,11 @@ poivec getHarris(const GImage &img, int wrad, int mrad, float thres, float _k = 
 poivec anms(poivec &in, int target, float diff);
 
 poivec getBlobs(GPyramid &pyr);
+poivec getDOGDetection(const GImage &img);
 
 gdvector getDescriptors(const GImage &img, const poivec &vpoi);
 
-
+poivec calculateOrientations(GImage &img, poivec &vpoi);
 
 vector<pair<int, int> > getMatches(const gdvector &dfirst, const gdvector &dsecond, const float thres);
 
