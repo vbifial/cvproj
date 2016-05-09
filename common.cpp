@@ -39,6 +39,57 @@ GConvol getSobelY()
     return ret;
 }
 
+GConvol getFaridXSeparate()
+{
+    GConvol ret;
+    ret.r = 2;
+    ret.a = unique_ptr<float[]>(new float[25] {0.104550f, 0.292315f, 
+            0.000000f, -0.292315f, -0.104550, 
+            0.f, 0.f, 1.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f});
+    return ret;
+}
+
+GConvol getFaridYSeparate()
+{
+    GConvol ret;
+    ret.r = 2;
+    ret.a = unique_ptr<float[]>(new float[25] {0.f, 0.f, 1.f, 0.f, 0.f,
+            0.104550f, 0.292315f, 0.000000f, 
+            -0.292315f, -0.104550, 
+            0.f, 0.f, 0.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f});
+    return ret;
+}
+
+GConvol getFaridX2Separate()
+{
+    GConvol ret;
+    ret.r = 2;
+    ret.a = unique_ptr<float[]>(new float[25] {0.232905f, 0.002668f, 
+            -0.471147f, 0.002668f, 0.232905f,
+            0.f, 0.f, 1.f, 0.f, 0.f, 
+            0.f, 0.f, 0.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f});
+    return ret;
+}
+
+GConvol getFaridY2Separate()
+{
+    GConvol ret;
+    ret.r = 2;
+    ret.a = unique_ptr<float[]>(new float[25] {0.f, 0.f, 1.f, 0.f, 0.f,
+            0.232905f, 0.002668f, -0.471147f, 0.002668f, 0.232905f, 
+            0.f, 0.f, 0.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f,
+            0.f, 0.f, 0.f, 0.f, 0.f});
+    return ret;
+}
+
 GImage getSobel(const GImage &img)
 {
     int width = img.width;
@@ -83,12 +134,43 @@ GConvol getGaussian(float sigma)
             ret.a[i * size + j] = val;
         }
     }
+    for (int i = 0; i < size * size; i++)
+            ret.a[i] /= sum;
+    
+    return ret;
+}
+
+GConvol getGaussianSeparate(float sigma)
+{
+    int r = (int)round((sigma * 3) + 0.5);
+    GConvol ret(r);
+    int size = r * 2 + 1;
+    float sum = 0.f;
+    float pi = (float)M_PI;
+    float sqs = sigma * sigma;
     
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
-            ret.a[i * size + j] /= sum;
+            int dx = i - r;
+            int dy = j - r;
+            float val = 1.f / (2.f * pi * sqs) * 
+                    expf(-(dx * dx + dy * dy) / (2.f * sqs));
+            sum += val;
+            ret.a[i * size + j] = val;
         }
     }
+    for (int i = 0; i < size * size; i++)
+        ret.a[i] /= sum;
+    
+    vector<float> v(size);
+    fill(begin(v), end(v), 0.f);
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            v[i] += ret.a[i * size + j];
+        }
+    }
+    for (int i = 0; i < size; i++)
+        ret.a[i] = ret.a[i + size] = v[i];
     
     return ret;
 }
@@ -282,16 +364,8 @@ poivec anms(poivec &in, int target, float diff) {
 
 void mark(QImage &img, int x, int y)
 {
-    int size = 4;
-    int dx[] = {0, 0, -1, 1};
-    int dy[] = {-1, 1, 0, 0};
-    for (int i = 0; i < size; i++) {
-        if (x + dx[i] > -1 && y + dy[i] > -1 &&
-                x + dx[i] < img.width() && 
-                y + dy[i] < img.height()) {
-            img.setPixel(x + dx[i], y + dy[i], 255 << 8);
-        }
-    }
+    drawCircle(img, x, y, 1, 255 << 16);
+    drawCircle(img, x, y, 2, 255 << 16);
 }
 
 GImage prepareEdges(const GImage &source, EdgeType edge, int r)
@@ -384,191 +458,130 @@ GImage prepareEdges(const GImage &source, EdgeType edge, int r)
 gdvector getDescriptors(const GImage &img, const poivec &vpoi)
 {
     gdvector ret;
-    ret.reserve(vpoi.size() * 2);
+    ret.reserve(vpoi.size());
     
     int width = img.width;
-    const int DRAD = 4; // descriptor`s radius
+    int mrad = 0;
+    for (size_t i = 0; i < vpoi.size(); i++)
+        mrad = max(mrad, int(ceilf(vpoi[i].scale * 5.f)));
+    
     const int DBOXES = 2; // boxes quantity per dimension
     const int BDIRS = 8; // directions quantity in box
-    int cwidth = width + DRAD * 2;
-    GImage wimg = prepareEdges(img, EdgeType_BorderCopy, DRAD);
+    int cwidth = width + mrad * 2;
+    GImage wimg = prepareEdges(img, EdgeType_BorderCopy, mrad);
     
-    GImage sx = getSobelX().apply(wimg, EdgeType_BorderCopy);
-    GImage sy = getSobelY().apply(wimg, EdgeType_BorderCopy);
+    GImage sx = getFaridXSeparate().applySeparate(wimg, EdgeType_BorderCopy);
+    GImage sy = getFaridYSeparate().applySeparate(wimg, EdgeType_BorderCopy);
     
-    const int ABCOUNT = 36; // directions quantity for orientation
-    
-    float sqs = DRAD / 2.;
+    float sqs = mrad / 2.;
     sqs *= sqs;
-    vector<int> dirs;
-    dirs.reserve(2);
-    float angBoxes[ABCOUNT];
     
     for (int i = 0; i < int(vpoi.size()); i++) {
-        int bx = vpoi[i].x + DRAD;
-        int by = vpoi[i].y + DRAD;
+        int bx = vpoi[i].x + mrad;
+        int by = vpoi[i].y + mrad;
         gdescriptor cdesc;
-        get<1>(cdesc) = bx - DRAD;
-        get<2>(cdesc) = by - DRAD;
+        get<1>(cdesc) = bx - mrad;
+        get<2>(cdesc) = by - mrad;
         float* dv = get<0>(cdesc);
-        fill(begin(angBoxes), end(angBoxes), 0.);
         
-        // orientation search
-        for (int cy = -DRAD; cy <= DRAD; cy++) {
-            for (int cx = -DRAD; cx <= DRAD; cx++) {
-                if (cy * cy + cx * cx > DRAD * DRAD)
+        float ran = vpoi[i].orient;
+        get<3>(cdesc) = ran;
+        float rsin = sinf(ran);
+        float rcos = cosf(ran);
+        int crad = int(ceilf(vpoi[i].scale * 4.f));
+        
+        for (int cy = -crad; cy <= crad; cy++) {
+            for (int cx = -crad; cx <= crad; cx++) {
+                if (cy * cy + cx * cx > crad * crad)
                     continue;
-                int qy = by + cy;
-                int qx = bx + cx;
-                float dy = sy.a[qy * cwidth + qx];
-                float dx = sx.a[qy * cwidth + qx];
+                int y = by + cy;
+                int x = bx + cx;
                 
-                float fi = atan2f(-dy, dx) + M_PI;
+                float dy = sy.a[y * cwidth + x];
+                float dx = sx.a[y * cwidth + x];
+                float fi = (atan2f(-dy, dx) + M_PI) - ran;
+                if (fi < 0.)
+                    fi += M_PI * 2.;
                 float len = sqrtf(dy * dy + dx * dx);
                 len *= expf(-(cy * cy + cx * cx) / (2.f * sqs));
                 
-                float alph = fi * ABCOUNT * 0.5f / M_PI;
+                float alph = fi * BDIRS * .5 / M_PI;
                 int drcn = int(alph);
                 int drnx = drcn + 1;
-                if (drnx == ABCOUNT)
+                if (drnx == BDIRS)
                     drnx = 0;
                 
                 float weight = alph - drcn;
                 
-                angBoxes[drcn] += len * (1 - weight);
-                angBoxes[drnx] += len * weight;
+                // getting normalized coorditates
+                float qy = -((-cy) * rcos - (cx) * rsin);
+                float qx = (cx) * rcos + (-cy) * rsin;
+                // box`s selection
+                float ybox = (qy - 0.5f + crad) / DBOXES + 0.5f;
+                float xbox = (qx - 0.5f + crad) / DBOXES + 0.5f;
+                int ybox1 = int(ybox);
+                int ybox2 = ybox1 + 1;
+                int xbox1 = int(xbox);
+                int xbox2 = xbox1 + 1;
+                float yweight = ybox - ybox1;
+                float xweight = xbox - xbox1;
                 
+                // overflow
+                if (ybox < 0) {
+                    ybox1 = 0;
+                    ybox2 = 1;
+                    yweight = 0.f;
+                }
+                if (ybox2 >= DBOXES) {
+                    ybox1 = DBOXES - 2;
+                    ybox2 = DBOXES - 1;
+                    yweight = 1.f;
+                }
+                if (xbox < 0) {
+                    xbox1 = 0;
+                    xbox2 = 1;
+                    xweight = 0.f;
+                }
+                if (xbox2 >= DBOXES) {
+                    xbox1 = DBOXES - 2;
+                    xbox2 = DBOXES - 1;
+                    xweight = 1.f;
+                }
+                
+                // distribution
+                dv[(ybox1 * DBOXES + xbox1) * BDIRS + drcn] += 
+                        len * (1 - weight) * (1 - xweight) * (1 - yweight);
+                dv[(ybox1 * DBOXES + xbox1) * BDIRS + drnx] += 
+                        len * weight * (1 - xweight) * (1 - yweight);
+                
+                dv[(ybox1 * DBOXES + xbox2) * BDIRS + drcn] += 
+                        len * (1 - weight) * (xweight) * (1 - yweight);
+                dv[(ybox1 * DBOXES + xbox2) * BDIRS + drnx] += 
+                        len * weight * (xweight) * (1 - yweight);
+                
+                dv[(ybox2 * DBOXES + xbox1) * BDIRS + drcn] += 
+                        len * (1 - weight) * (1 - xweight) * (yweight);
+                dv[(ybox2 * DBOXES + xbox1) * BDIRS + drnx] += 
+                        len * weight * (1 - xweight) * (yweight);
+                
+                dv[(ybox2 * DBOXES + xbox2) * BDIRS + drcn] += 
+                        len * (1 - weight) * (xweight) * (yweight);
+                dv[(ybox2 * DBOXES + xbox2) * BDIRS + drnx] += 
+                        len * weight * (xweight) * (yweight);
             }
         }
-        
-        // maximum`s selection
-        dirs.clear();
-        int maxId = 0;
-        for (int j = 1; j < ABCOUNT; j++) {
-            if (angBoxes[j] > angBoxes[maxId])
-                maxId = j;
-        }
-        dirs.push_back(maxId);
-        // second maximum`s selection
-        maxId = (maxId + 1) % ABCOUNT;
-        for (int j = 0; j < ABCOUNT; j++) {
-            if (j != dirs[0] && angBoxes[j] > angBoxes[maxId])
-                maxId = j;
-        }
-        if (angBoxes[maxId] >= angBoxes[dirs[0]] * 0.8)
-            dirs.push_back(maxId);
-        
-        for (size_t j = 0; j < dirs.size(); j++) {
-            
-            // interpolation init
-            int x2 = dirs[j];
-            int x1 = (x2 + ABCOUNT - 1) % ABCOUNT;
-            int x3 = (x2 + 1) % ABCOUNT;
-            float y1 = angBoxes[x1];
-            float y2 = angBoxes[x2];
-            float y3 = angBoxes[x3];
-            
-            if (y2 < y1 || y2 < y3)
-                continue;
-            
-            float ax[] = {float(x2 - 1), float(x2), float(x2 + 1)};
-            float ay[] = {y1, y2, y3};
-            
-            float q1[3] = {y1, 0, 0}; // current coeffs
-            float q2[3]; // additional coeffs
-            
-            // parabolic angle interpolation
-            for (int c1 = 1; c1 < 3; c1++) {
-                float co = 1.f;
-                for (int c2 = 0; c2 < c1; c2++) {
-                    co *= (ax[c1] - ax[c2]);
-                }
-                float cur = ax[c1] * (ax[c1] * q1[2] + q1[1]) + q1[0];
-                co = (ay[c1] - cur) / co;
-                fill(begin(q2), end(q2), 0.f);
-                q2[0] = 1;
-                for (int c2 = 0; c2 < c1; c2++) {
-                    float z = 0;
-                    for (int c3 = 0; c3 <= c2; c3++) {
-                        float nx = q2[c3];
-                        q2[c3] = z - (nx * ax[c2]);
-                        z = nx;
-                    }
-                    q2[c2 + 1] = z;
-                }
-                for (int c2 = 0; c2 < 3; c2++)
-                    q1[c2] += q2[c2] * co;
+        // independent normalization
+        for (int box = 0; box < DBOXES * DBOXES; box++) {
+            float len = 0.;
+            for (int j = 0; j < BDIRS; j++) {
+                len = max(len, dv[box * BDIRS + j]);
             }
-            
-            // resulting orientation
-            float rtx = -q1[1] / (2.f * q1[2]);
-            if (rtx < 0)
-                rtx += ABCOUNT;
-            
-            float ran = float(M_PI) * 2.f * (rtx) / ABCOUNT;
-            get<3>(cdesc) = ran;
-            
-            float rsin = sinf(ran);
-            float rcos = cosf(ran);
-            
-            // 
-            for (int cy = -DRAD; cy <= DRAD; cy++) {
-                for (int cx = -DRAD; cx <= DRAD; cx++) {
-                    if (cy * cy + cx * cx > DRAD * DRAD)
-                        continue;
-                    int y = by + cy;
-                    int x = bx + cx;
-                    
-                    float dy = sy.a[y * cwidth + x];
-                    float dx = sx.a[y * cwidth + x];
-                    float fi = (atan2f(-dy, dx) + M_PI) - ran;
-                    if (fi < 0.)
-                        fi += M_PI * 2.;
-                    float len = sqrtf(dy * dy + dx * dx);
-                    len *= expf(-(cy * cy + cx * cx) / (2.f * sqs));
-                    
-                    float alph = fi * BDIRS * .5 / M_PI;
-                    int drcn = int(alph);
-                    int drnx = drcn + 1;
-                    if (drnx == BDIRS)
-                        drnx = 0;
-                    
-                    float weight = alph - drcn;
-                    
-                    // getting normalized coorditates
-                    float qy = -((-cy) * rcos - (cx) * rsin);
-                    float qx = (cx) * rcos + (-cy) * rsin;
-                    // box`s selection
-                    int ybox = int((qy - 0.5f + DRAD) / DBOXES);
-                    int xbox = int((qx - 0.5f + DRAD) / DBOXES);
-                    if (ybox < 0)
-                        ybox = 0;
-                    if (ybox >= DBOXES)
-                        ybox = DBOXES - 1;
-                    if (xbox < 0)
-                        xbox = 0;
-                    if (xbox >= DBOXES)
-                        xbox = DBOXES - 1;
-                    
-                    dv[(ybox * DBOXES + xbox) * BDIRS + drcn] += 
-                            len * (1 - weight);
-                    dv[(ybox * DBOXES + xbox) * BDIRS + drnx] += 
-                            len * weight;
-                }
+            len += 1e-15f;
+            for (int j = 0; j < BDIRS; j++) {
+                dv[box * BDIRS + j] /= len;
             }
-            // independent normalization
-            for (int box = 0; box < DBOXES * DBOXES; box++) {
-                float len = 0.;
-                for (int j = 0; j < BDIRS; j++) {
-                    len = max(len, dv[box * BDIRS + j]);
-                }
-                len += 1e-50;
-                for (int j = 0; j < BDIRS; j++) {
-                    dv[box * BDIRS + j] /= len;
-                }
-            }
-            ret.push_back(cdesc);
         }
+        ret.push_back(cdesc);
     }
     
     return ret;
@@ -622,7 +635,10 @@ void drawLine(QImage &img, int x1, int y1, int x2, int y2, int color)
     
     for (float i = 0.; i <= 1.; i += dlt) {
         float j = 1. - i;
-        img.setPixel(int(roundf(x1 * i + x2 * j)), int(roundf(y1 * i + y2 * j)), color);
+        float x = int(roundf(x1 * i + x2 * j));
+        float y = int(roundf(y1 * i + y2 * j));
+        if (x > -1 && y > -1 && x < img.width() && y < img.height())
+        img.setPixel(x, y, color);
     }
 }
 
@@ -683,7 +699,7 @@ QImage drawMatches(const GImage &gimg, const GImage &gimg2, gdvector &desc1, gdv
     return ret;
 }
 
-QImage drawBlobs(const GImage &img, poivec blobs)
+QImage drawBlobs(const GImage &img, poivec &blobs, bool drawDirections)
 {
     uniform_int_distribution<uint32_t> uint_dist(0, (1 << 24) - 1);
     mt19937 rnd;
@@ -698,6 +714,11 @@ QImage drawBlobs(const GImage &img, poivec blobs)
     
     for (uint i = 0; i  < blobs.size(); i++) {
         int color = uint_dist(rnd);
+        int r = max(int(roundf(blobs[i].scale)), 20);
+        if (drawDirections)
+            drawLine(ret, blobs[i].x, blobs[i].y, 
+                     blobs[i].x + r * cosf(blobs[i].orient),
+                     blobs[i].y - r * sinf(blobs[i].orient), color);
         
         drawCircle(ret, blobs[i].x, blobs[i].y, 
                  blobs[i].scale, color);
@@ -749,7 +770,7 @@ poivec getBlobs(GPyramid &pyr)
                         p.x = x << i;
                         p.y = y << i;
                         p.scale = exp2f(float(i * (doG.olayers) + j) / 
-                                        (doG.olayers)) * pyr.sbase;
+                                        (doG.olayers)) * pyr.sbase * CSIGSIZE;
                         ret.push_back(p);
                     }
                 }
@@ -774,6 +795,10 @@ poivec getDOGDetection(const GImage &img)
     int dy[] = {1, 0, -1, 1, -1, 1, 0, -1, 0};
     const float EDGE_R = 10.f;
 //    int shifts = 0; // debug
+    GConvol farx = getFaridXSeparate();
+    GConvol fary = getFaridYSeparate();
+    GConvol farx2 = getFaridX2Separate();
+    GConvol fary2 = getFaridY2Separate();
     
     for (int i = 0; i < doG.ocnt; i++) {
         for (int j = (i == 0 ? 1 : 0); j < doG.olayers; j++) {
@@ -783,13 +808,11 @@ poivec getDOGDetection(const GImage &img)
             GImage& nxt = doG.a[lId + 1];
             GImage* imgs[] = {&cur, &prv, &nxt};
             
-            GConvol sx = getSobelX();
-            GConvol sy = getSobelY();
-            GImage sdx = sx.apply(cur, EdgeType_BorderCopy);
-            GImage sdy = sy.apply(cur, EdgeType_BorderCopy);
-            GImage sdx2 = sx.apply(sdx, EdgeType_BorderCopy);
-            GImage sdy2 = sy.apply(sdy, EdgeType_BorderCopy);
-            GImage sdxy = sx.apply(sdy, EdgeType_BorderCopy);
+            GImage sdx = farx.applySeparate(cur, EdgeType_BorderCopy);
+            GImage sdy = fary.applySeparate(cur, EdgeType_BorderCopy);
+            GImage sdx2 = farx2.applySeparate(cur, EdgeType_BorderCopy);
+            GImage sdy2 = fary2.applySeparate(cur, EdgeType_BorderCopy);
+            GImage sdxy = farx.applySeparate(sdy, EdgeType_BorderCopy);
             
             for (int y = 1; y < cur.height - 1; y++) {
                 for (int x = 1; x < cur.width - 1; x++) {
@@ -816,14 +839,14 @@ poivec getDOGDetection(const GImage &img)
                         int cx = x;
                         int cy = y;
                         float sg = exp2f(float(i * (doG.olayers) + j) / 
-                                       (doG.olayers)) * pyr.sbase;
+                                       (doG.olayers)) * pyr.sbase * CSIGSIZE;
                         
                         float cdx, cdy, ha, hb, hc, det, trace, gx, gy;
                         float cdx2, cdy2, cdxy;
 //                        cout << cx << " " << cy << endl;
                         
                         // adjusting position
-                        while (true) {
+                        for (int k = 0; k < 3; k++) {
                             cdx = sdx.a[cy * sdx.width + cx];
                             cdy = sdy.a[cy * sdx.width + cx];
                             cdx2 = sdx2.a[cy * sdx.width + cx];
@@ -853,6 +876,7 @@ poivec getDOGDetection(const GImage &img)
                             if (fabsf(gy) >= 0.5f)
                                 cy += (gy > 0) ? 1 : -1;
                         }
+                        gx = gy = 0;
                         float nd = cur.a[cy * cur.width + cx] + 
                                 gx * cdx / 2.f + gy * cdy / 2.f;
                         // filtering low-contrast points
@@ -861,7 +885,7 @@ poivec getDOGDetection(const GImage &img)
                         // filtering edges
                         if (trace * trace / det > (EDGE_R + 1) * (EDGE_R + 1) / EDGE_R)
                             continue;
-//                        gx = gy = 0;
+                        gx = gy = 0;
                         poi p;
                         p.x = (cx + gx) * (1 << i);
                         p.y = (cy + gy) * (1 << i);
@@ -890,8 +914,8 @@ poivec calculateOrientations(GImage &img, poivec &vpoi)
     int cwidth = width + mrad * 2;
     GImage wimg = prepareEdges(img, EdgeType_BorderCopy, mrad);
     
-    GImage sx = getSobelX().apply(wimg, EdgeType_BorderCopy);
-    GImage sy = getSobelY().apply(wimg, EdgeType_BorderCopy);
+    GImage sx = getFaridXSeparate().applySeparate(wimg, EdgeType_BorderCopy);
+    GImage sy = getFaridYSeparate().applySeparate(wimg, EdgeType_BorderCopy);
     
     const int ABCOUNT = 36; // directions quantity for orientation
     

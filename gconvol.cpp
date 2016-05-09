@@ -51,17 +51,8 @@ GImage GConvol::applySeparate(const GImage &img, EdgeType edge)
     GImage res(width, height);
     
     int csize = 2 * r + 1;
-    float vx[csize];
-    float vy[csize];
-    for (int i = 0; i < csize; i++)
-        vx[i] = vy[i] = 0.f;
-    for (int i = 0; i < csize; i++) {
-        for (int j = 0; j < csize; j++) {
-            float val = a[i * csize + j];
-            vx[csize - i - 1] += val;
-            vy[csize - j - 1] += val;
-        }
-    }
+    float* vx = &a[0];
+    float* vy = &a[csize];
     
     for (int i = 0; i < cheight; i++) {
         for (int j = 0; j < width; j++) {

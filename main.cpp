@@ -20,9 +20,9 @@ int main(int argc, char *argv[])
     
 //    gimg.save("output.jpg");
     
-    QImage qbimg("binput3.jpg");
+    QImage qbimg("binput.jpg");
     GImage bimg(qbimg);
-    GPyramid pyr(bimg, 1.6, .5, 4);
+//    GPyramid pyr(bimg, 1.6, .5, 4);
     
 //    GPyramid dpyr = pyr.getDOG();
 //    GPyramid& ypyr = dpyr;
@@ -51,33 +51,48 @@ int main(int argc, char *argv[])
 //    }
     
 //    auto blobs = getBlobs(pyr);
-    auto blobs = getDOGDetection(bimg);
+//    auto blobs = getDOGDetection(bimg);
     
-    cout << "Blobs " << blobs.size() << endl;
+//    cout << "Blobs " << blobs.size() << endl;
     
-//    auto out = drawBlobs(pyr.a[0], blobs);
-    auto out = drawBlobs(bimg, blobs);
-    saveJpeg(out, "blobs.jpg");
-    
-    
-//    auto pv1 = getDOGDetection(gimg, 0, 0, 0);
-//    cout << "Points 1 " << pv1.size() << endl;
-//    auto pv2 = getDOGDetection(gimg2, 0, 0, 0);
-//    cout << "Points 2 " << pv2.size() << endl;
-    
-//    auto out1 = drawBlobs(gimg, pv1);
-//    saveJpeg(out1, "out1.jpg");
-//    auto out2 = drawBlobs(gimg2, pv2);
-//    saveJpeg(out2, "out2.jpg");
+//////    auto out = drawBlobs(pyr.a[0], blobs);
+//    auto out = drawBlobs(bimg, blobs, false);
+//    saveJpeg(out, "blobs.jpg");
     
     
+    auto pv1 = getDOGDetection(gimg);
+    pv1 = calculateOrientations(gimg, pv1);
+    cout << "Points 1 " << pv1.size() << endl;
+    auto pv2 = getDOGDetection(gimg2);
+    pv2 = calculateOrientations(gimg2, pv2);
+    cout << "Points 2 " << pv2.size() << endl;
     
-//    auto har1 = getHarris(gimg, 2, 2, 1e-7);
+    auto out1 = drawBlobs(gimg, pv1, true);
+    cout << "draw1" << endl;
+    saveJpeg(out1, "out1.jpg");
+    auto out2 = drawBlobs(gimg2, pv2, true);
+    cout << "draw2" << endl;
+    saveJpeg(out2, "out2.jpg");
+    
+    auto bdesc1 = getDescriptors(gimg, pv1);
+    cout << "bdesc 1: " << bdesc1.size() << endl;
+    auto bdesc2 = getDescriptors(gimg2, pv2);
+    cout << "bdesc 2: " << bdesc2.size() << endl;
+    
+//    auto bmatches = getMatches(bdesc1, bdesc2, 5e-1);
+    auto bmatches = getMatches(bdesc1, bdesc2, 
+                               numeric_limits<float>::max());
+    cout << "matches : " << bmatches.size() << endl;
+    
+    QImage bout = drawMatches(gimg, gimg2, bdesc1, bdesc2, bmatches);
+    saveJpeg(bout, "bmathches.jpg");
+    
+//    auto har1 = getHarris(gimg, 2, 2, 1e-8);
 //    cout << "Harris 1: " << har1.size() << endl;
-////    har1 = anms(har1, 200, .1);
+//    har1 = anms(har1, 200, .1);
 //    cout << "anms 1: " << har1.size() << endl;
     
-//    auto har2 = getHarris(gimg2, 2, 2, 1e-7);
+//    auto har2 = getHarris(gimg2, 2, 2, 1e-8);
 //    cout << "Harris 2: " << har2.size() << endl;
 ////    har2 = anms(har2, 200, .1);
 //    cout << "anms 2: " << har2.size() << endl;

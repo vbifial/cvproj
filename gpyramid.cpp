@@ -24,7 +24,7 @@ GPyramid::GPyramid(const GImage &img, float _sbase, float _s0, int _olayers)
     olayers = _olayers;
     a = make_unique<GImage[]>((olayers + 3) * ocnt);
     double initDlt = sqrt(sbase * sbase - s0 * s0);
-    a[0] = getGaussian(initDlt).applySeparate(img, EdgeType_Mirror);
+    a[0] = getGaussianSeparate(initDlt).applySeparate(img, EdgeType_Mirror);
     
     double sdiff = exp2(1. / olayers);
     double effec = sbase;
@@ -49,7 +49,7 @@ GPyramid::GPyramid(const GImage &img, float _sbase, float _s0, int _olayers)
         for (int j = (i == 0 ? 1 : 0); j < olayers + 2; j++) {
             double snext = effec * sdiff;
             double dlt = sqrt(snext * snext - effec * effec);
-            GConvol conv = getGaussian((float)dlt);
+            GConvol conv = getGaussianSeparate((float)dlt);
             a[i * (olayers + 3) + j] = conv.applySeparate(a[i * (olayers + 3) + j - 1], 
                     EdgeType_Mirror);
             effec = snext;

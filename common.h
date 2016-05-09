@@ -21,6 +21,7 @@ enum EdgeType {
 };
 
 const int DSIZE = 32;
+const float CSIGSIZE = sqrtf(2.f);
 
 float fromRGB(int color);
 int toRGB(float color);
@@ -43,8 +44,14 @@ typedef vector<gdescriptor> gdvector;
 
 GConvol getSobelX();
 GConvol getSobelY();
+
+GConvol getFaridXSeparate();
+GConvol getFaridYSeparate();
+GConvol getFaridX2Separate();
+GConvol getFaridY2Separate();
 GImage getSobel(const GImage &img);
 GConvol getGaussian(float sigma);
+GConvol getGaussianSeparate(float sigma);
 GImage prepareEdges(const GImage &source, EdgeType edge, int r);
 
 poivec getMoravec(const GImage &img, int wrad, int mrad, float thres);
@@ -68,7 +75,7 @@ void mark(QImage &img, int x, int y);
 QImage drawPoints(const GImage &img, poivec &vpoi);
 QImage drawMatches(const GImage &img1, const GImage &img2, 
                    gdvector &desc1, gdvector &desc2, vector<pair<int, int> > &matches);
-QImage drawBlobs(const GImage &img, poivec blobs);
+QImage drawBlobs(const GImage &img, poivec &blobs, bool drawDirections);
 void saveJpeg(QImage &img, const char* filename);
 
 const float rgbLum[] = {0.213, 0.715, 0.072};
