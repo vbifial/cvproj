@@ -457,16 +457,18 @@ GImage prepareEdges(const GImage &source, EdgeType edge, int r)
 
 gdvector getDescriptors(const GImage &img, const poivec &vpoi)
 {
+    const int DRAD = 6; // descriptor-s radius
+    const int DBOXES = 4; // boxes quantity per dimension
+    const int BDIRS = 8; // directions quantity in box
+    
     gdvector ret;
     ret.reserve(vpoi.size());
     
     int width = img.width;
     int mrad = 0;
     for (size_t i = 0; i < vpoi.size(); i++)
-        mrad = max(mrad, int(ceilf(vpoi[i].scale * 5.f)));
+        mrad = max(mrad, int(ceilf(vpoi[i].scale * DRAD)));
     
-    const int DBOXES = 2; // boxes quantity per dimension
-    const int BDIRS = 8; // directions quantity in box
     int cwidth = width + mrad * 2;
     GImage wimg = prepareEdges(img, EdgeType_BorderCopy, mrad);
     
@@ -477,18 +479,19 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
     sqs *= sqs;
     
     for (int i = 0; i < int(vpoi.size()); i++) {
-        int bx = vpoi[i].x + mrad;
-        int by = vpoi[i].y + mrad;
+        int bx = roundf(vpoi[i].x) + mrad;
+        int by = roundf(vpoi[i].y) + mrad;
         gdescriptor cdesc;
-        get<1>(cdesc) = bx - mrad;
-        get<2>(cdesc) = by - mrad;
-        float* dv = get<0>(cdesc);
+        cdesc.p = vpoi[i];
+        float* dv = cdesc.vec;
+        fill(&dv[0], &dv[DSIZE], 0.f);
         
         float ran = vpoi[i].orient;
-        get<3>(cdesc) = ran;
         float rsin = sinf(ran);
         float rcos = cosf(ran);
-        int crad = int(ceilf(vpoi[i].scale * 4.f));
+        int crad = int(ceilf(vpoi[i].scale * DRAD));
+        sqs = vpoi[i].scale * DRAD / 2.;
+        sqs *= sqs;
         
         for (int cy = -crad; cy <= crad; cy++) {
             for (int cx = -crad; cx <= crad; cx++) {
@@ -517,8 +520,8 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
                 float qy = -((-cy) * rcos - (cx) * rsin);
                 float qx = (cx) * rcos + (-cy) * rsin;
                 // box`s selection
-                float ybox = (qy - 0.5f + crad) / DBOXES + 0.5f;
-                float xbox = (qx - 0.5f + crad) / DBOXES + 0.5f;
+                float ybox = (qy + crad) / DBOXES + 0.5f;
+                float xbox = (qx + crad) / DBOXES + 0.5f;
                 int ybox1 = int(ybox);
                 int ybox2 = ybox1 + 1;
                 int xbox1 = int(xbox);
@@ -603,9 +606,9 @@ vector<pair<int, int> > getMatches(const gdvector &dfirst, const gdvector &dseco
     
     for (size_t i = 0; i < dfirst.size(); i++) {
         for (size_t j = 0; j < dsecond.size(); j++) {
-            float cur = 0.;
+            float cur = 0.f;
             for (size_t k = 0; k < DSIZE; k++) {
-                float dim = get<0>(dfirst[i])[k] - get<0>(dsecond[j])[k];
+                float dim = dfirst[i].vec[k] - dsecond[j].vec[k];
                 cur += dim * dim;
             }
             if (left[i] > cur) {
@@ -669,7 +672,7 @@ void saveJpeg(QImage &img, const char* filename)
 }
 
 QImage drawMatches(const GImage &gimg, const GImage &gimg2, gdvector &desc1, gdvector &desc2, 
-                   vector<pair<int, int> > &matches)
+                   vector<pair<int, int> > &matches, bool lines, bool marks)
 {
     QImage ret(gimg.width + gimg2.width, 
                max(gimg.height, gimg2.height), QImage::Format_RGB32);
@@ -691,10 +694,22 @@ QImage drawMatches(const GImage &gimg, const GImage &gimg2, gdvector &desc1, gdv
     
     for (uint i = 0; i  < matches.size(); i++) {
         int color = uint_dist(rnd);
-        auto &l = desc1[matches[i].first];
-        auto &r = desc2[matches[i].second];
-        drawLine(ret, get<1>(l), get<2>(l), 
-                 get<1>(r) + gimg.width, get<2>(r), color);
+        auto &l = desc1[matches[i].first].p;
+        auto &r = desc2[matches[i].second].p;
+        if (lines)
+            drawLine(ret, l.x, l.y, r.x + gimg.width, r.y, color);
+        if (marks) {
+            int rad = max(int(roundf(l.scale)), 20);
+            drawLine(ret, l.x, l.y, l.x + rad * cosf(l.orient),
+                     l.y - rad * sinf(l.orient), color);
+            drawCircle(ret, l.x, l.y, l.scale, color);
+            rad = max(int(roundf(r.scale)), 20);
+            drawLine(ret, r.x + gimg.width, r.y, r.x + 
+                     rad * cosf(r.orient) + gimg.width,
+                     r.y - rad * sinf(r.orient), color);
+            drawCircle(ret, r.x + gimg.width, r.y, r.scale, color);
+        }
+        
     }
     return ret;
 }
@@ -838,10 +853,8 @@ poivec getDOGDetection(const GImage &img)
                     if (extMax || extMin) {
                         int cx = x;
                         int cy = y;
-                        float sg = exp2f(float(i * (doG.olayers) + j) / 
-                                       (doG.olayers)) * pyr.sbase * CSIGSIZE;
                         
-                        float cdx, cdy, ha, hb, hc, det, trace, gx, gy;
+                        float cdx, cdy, ha, hb, hc, det, trace, gx, gy, gs;
                         float cdx2, cdy2, cdxy;
 //                        cout << cx << " " << cy << endl;
                         
@@ -876,7 +889,26 @@ poivec getDOGDetection(const GImage &img)
                             if (fabsf(gy) >= 0.5f)
                                 cy += (gy > 0) ? 1 : -1;
                         }
-                        gx = gy = 0;
+                        // temporary interpolation
+                        float ax[3] {-1.f, 0.f, 1.f};
+                        float ay1[3] {cur.a[cy * cur.width + cx - 1], 
+                                    cur.a[cy * cur.width + cx], 
+                                    cur.a[cy * cur.width + cx + 1]};
+                        float ay2[3] {cur.a[(cy - 1) * cur.width + cx], 
+                                    cur.a[cy * cur.width + cx], 
+                                    cur.a[(cy + 1) * cur.width + cx]};
+                        float ay3[3] {prv.a[cy * cur.width + cx], 
+                                    cur.a[cy * cur.width + cx], 
+                                    nxt.a[cy * cur.width + cx]};
+                        gx = gy = gs = 0;
+                        auto e1 = getParabolicExtremum(ax, ay1);
+                        auto e2 = getParabolicExtremum(ax, ay2);
+                        auto e3 = getParabolicExtremum(ax, ay3);
+                        gx += e1.first;
+                        gy += e2.first;
+                        gs += e3.first;
+//                        cout << "shift " << gx << " " << gy << endl;
+                        
                         float nd = cur.a[cy * cur.width + cx] + 
                                 gx * cdx / 2.f + gy * cdy / 2.f;
                         // filtering low-contrast points
@@ -885,10 +917,12 @@ poivec getDOGDetection(const GImage &img)
                         // filtering edges
                         if (trace * trace / det > (EDGE_R + 1) * (EDGE_R + 1) / EDGE_R)
                             continue;
-                        gx = gy = 0;
+//                        gx = gy = 0;
+                        float sg = exp2f((i * (doG.olayers) + j + gs) / 
+                                       (doG.olayers)) * pyr.sbase * CSIGSIZE;
                         poi p;
-                        p.x = (cx + gx) * (1 << i);
-                        p.y = (cy + gy) * (1 << i);
+                        p.x = (cx + gx + 0.5f) * (1 << i) - 0.5f;
+                        p.y = (cy + gy + 0.5f) * (1 << i);
                         p.scale = sg;
                         ret.push_back(p);
                     }
@@ -990,34 +1024,10 @@ poivec calculateOrientations(GImage &img, poivec &vpoi)
             float ax[] = {float(x2 - 1), float(x2), float(x2 + 1)};
             float ay[] = {y1, y2, y3};
             
-            float q1[3] = {y1, 0, 0}; // current coeffs
-            float q2[3]; // additional coeffs
-            
-            // parabolic angle interpolation
-            for (int c1 = 1; c1 < 3; c1++) {
-                float co = 1.f;
-                for (int c2 = 0; c2 < c1; c2++) {
-                    co *= (ax[c1] - ax[c2]);
-                }
-                float cur = ax[c1] * (ax[c1] * q1[2] + q1[1]) + q1[0];
-                co = (ay[c1] - cur) / co;
-                fill(begin(q2), end(q2), 0.f);
-                q2[0] = 1;
-                for (int c2 = 0; c2 < c1; c2++) {
-                    float z = 0;
-                    for (int c3 = 0; c3 <= c2; c3++) {
-                        float nx = q2[c3];
-                        q2[c3] = z - (nx * ax[c2]);
-                        z = nx;
-                    }
-                    q2[c2 + 1] = z;
-                }
-                for (int c2 = 0; c2 < 3; c2++)
-                    q1[c2] += q2[c2] * co;
-            }
+            auto q1 = getParabolicInterpolation(ax, ay);
             
             // resulting orientation
-            float rtx = -q1[1] / (2.f * q1[2]);
+            float rtx = -get<1>(q1) / (2.f * get<2>(q1));
             if (rtx < 0)
                 rtx += ABCOUNT;
             
@@ -1026,4 +1036,60 @@ poivec calculateOrientations(GImage &img, poivec &vpoi)
         }
     }
     return ret;
+}
+
+vector<float> polinomialInterpolation(float *x, float *y, int size)
+{
+    vector<float> q1(size); // current coeffs
+    vector<float> q2(size); // additional coeffs
+    
+    q1[0] = y[0];
+    // parabolic angle interpolation
+    for (int c1 = 1; c1 < size; c1++) {
+        float co = 1.f;
+        for (int c2 = 0; c2 < c1; c2++) {
+            co *= (x[c1] - x[c2]);
+        }
+        float cur = 0;
+        for (int c2 = c1; c2 > -1; c2--) {
+            cur *= x[c1];
+            cur += q1[c2];
+        }
+        co = (y[c1] - cur) / co;
+        fill(begin(q2), end(q2), 0.f);
+        q2[0] = 1;
+        for (int c2 = 0; c2 < c1; c2++) {
+            float z = 0;
+            for (int c3 = 0; c3 <= c2; c3++) {
+                float nx = q2[c3];
+                q2[c3] = z - (nx * x[c2]);
+                z = nx;
+            }
+            q2[c2 + 1] = z;
+        }
+        for (int c2 = 0; c2 < 3; c2++)
+            q1[c2] += q2[c2] * co;
+    }
+    return q1;
+}
+
+tuple<float, float, float> getParabolicInterpolation(float *x, float *y)
+{
+    float x21 = x[1] - x[0];
+    float x31 = x[2] - x[0];
+    float x32 = x[2] - x[1];
+    float y21 = y[1] - y[0];
+    float y31 = y[2] - y[0];
+    float a = y31 / x31 / x32 - y21 / x21 / x32;
+    float b = -a * (x[0] + x[1]) + y21 / x21;
+    float c = x[0] * x[1] * a - x[0] * y21 / x21 + y[0];
+    return make_tuple(c, b, a);
+}
+
+pair<float, float> getParabolicExtremum(float *x, float *y)
+{
+    auto d = getParabolicInterpolation(x, y);
+    float x1 = -get<1>(d) * 0.5f / get<2>(d);
+    float y1 = x1 * (x1 * get<2>(d) + get<1>(d)) + get<0>(d);
+    return make_pair(x1, y1);
 }

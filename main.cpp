@@ -50,6 +50,8 @@ int main(int argc, char *argv[])
 //        }
 //    }
     
+    
+    
 //    auto blobs = getBlobs(pyr);
 //    auto blobs = getDOGDetection(bimg);
     
@@ -79,13 +81,20 @@ int main(int argc, char *argv[])
     auto bdesc2 = getDescriptors(gimg2, pv2);
     cout << "bdesc 2: " << bdesc2.size() << endl;
     
-//    auto bmatches = getMatches(bdesc1, bdesc2, 5e-1);
-    auto bmatches = getMatches(bdesc1, bdesc2, 
-                               numeric_limits<float>::max());
+    auto bmatches = getMatches(bdesc1, bdesc2, 2e0);
+//    auto bmatches = getMatches(bdesc1, bdesc2,
+//                               numeric_limits<float>::max());
     cout << "matches : " << bmatches.size() << endl;
     
-    QImage bout = drawMatches(gimg, gimg2, bdesc1, bdesc2, bmatches);
+    QImage bout = drawMatches(gimg, gimg2, bdesc1, bdesc2, bmatches, 
+                              true, false);
     saveJpeg(bout, "bmathches.jpg");
+    QImage bout2 = drawMatches(gimg, gimg2, bdesc1, bdesc2, bmatches, 
+                              false, true);
+    saveJpeg(bout2, "bmathches2.jpg");
+    
+    
+    
     
 //    auto har1 = getHarris(gimg, 2, 2, 1e-8);
 //    cout << "Harris 1: " << har1.size() << endl;
