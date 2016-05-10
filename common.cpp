@@ -605,10 +605,12 @@ vector<pair<int, int> > getMatches(const gdvector &dfirst, const gdvector &dseco
     fill(begin(right), end(right), numeric_limits<float>::max());
     
     for (size_t i = 0; i < dfirst.size(); i++) {
+        const float* v1 = dfirst[i].vec;
         for (size_t j = 0; j < dsecond.size(); j++) {
+            const float* v2 = dsecond[j].vec;
             float cur = 0.f;
             for (size_t k = 0; k < DSIZE; k++) {
-                float dim = dfirst[i].vec[k] - dsecond[j].vec[k];
+                float dim = v1[k] - v2[k];
                 cur += dim * dim;
             }
             if (left[i] > cur) {

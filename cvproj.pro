@@ -9,15 +9,22 @@ CONFIG += c++14
 
 TEMPLATE = app
 
+INCLUDEPATH += ../libs/gsl/include
+DEPENDPATH += ../libs/gsl/include
+LIBS += ../libs/gsl/lib/libgsl-0-vc8.lib
+LIBS += ../libs/gsl/lib/libgslcblas-0-vc8.lib
+
 SOURCES += main.cpp \
     gimage.cpp \
     common.cpp \
     gconvol.cpp \
-    gpyramid.cpp
+    gpyramid.cpp \
+    transform.cpp
 
 HEADERS += \
     gimage.h \
     common.h \
     gconvol.h \
-    gpyramid.h
+    gpyramid.h \
+    transform.h
 

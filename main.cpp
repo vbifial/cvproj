@@ -2,11 +2,14 @@
 #include "gimage.h"
 #include "gconvol.h"
 #include "gpyramid.h"
+#include "transform.h"
 
 int main(int argc, char *argv[])
 {
     int time = getTimeMill();
     QCoreApplication a(argc, argv);
+    
+//    gsl_matrix_alloc(1, 1);
     
     QImage qimg("input1.jpg");
     QImage qimg2("input2.jpg");
@@ -81,7 +84,7 @@ int main(int argc, char *argv[])
     auto bdesc2 = getDescriptors(gimg2, pv2);
     cout << "bdesc 2: " << bdesc2.size() << endl;
     
-    auto bmatches = getMatches(bdesc1, bdesc2, 2e0);
+    auto bmatches = getMatches(bdesc1, bdesc2, 1e0);
 //    auto bmatches = getMatches(bdesc1, bdesc2,
 //                               numeric_limits<float>::max());
     cout << "matches : " << bmatches.size() << endl;
@@ -93,6 +96,20 @@ int main(int argc, char *argv[])
                               false, true);
     saveJpeg(bout2, "bmathches2.jpg");
     
+    poivec l(bmatches.size());
+    poivec r(bmatches.size());
+    for (size_t i = 0; i < bmatches.size(); i++) {
+        l[i] = bdesc1[bmatches[i].first].p;
+        r[i] = bdesc2[bmatches[i].second].p;
+    }
+    
+//    auto h = getRansacTransform(r, l, 10, .3f);
+    auto h = getTransformation(r, l);
+    for (size_t i = 0; i < r.size(); i++) {
+        r[i] = transformPOI(h, r[i]);
+    }
+    auto out3 = drawBlobs(gimg, r, true);
+    saveJpeg(out3, "out3.jpg");
     
     
     
