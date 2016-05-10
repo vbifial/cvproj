@@ -11,10 +11,12 @@ int main(int argc, char *argv[])
     
 //    gsl_matrix_alloc(1, 1);
     
-    QImage qimg("input1.jpg");
-    QImage qimg2("input2.jpg");
+//    QImage qimg("input1.jpg");
+//    QImage qimg2("input2.jpg");
 //    QImage qimg("input3.jpg");
 //    QImage qimg2("input4.jpg");
+    QImage qimg("input5.jpg");
+    QImage qimg2("input6.jpg");
     
     GImage gimg(qimg);
     GImage gimg2(qimg2);
@@ -103,13 +105,16 @@ int main(int argc, char *argv[])
         r[i] = bdesc2[bmatches[i].second].p;
     }
     
-//    auto h = getRansacTransform(r, l, 10, .3f);
-    auto h = getTransformation(r, l);
+    auto h = getRansacTransform(r, l, 10, .3f);
+//    auto h = getTransformation(r, l);
     for (size_t i = 0; i < r.size(); i++) {
         r[i] = transformPOI(h, r[i]);
     }
     auto out3 = drawBlobs(gimg, r, true);
     saveJpeg(out3, "out3.jpg");
+    
+    auto out4 = getOverlapping(gimg, gimg2, h);
+    out4.save("out4.jpg");
     
     
     
