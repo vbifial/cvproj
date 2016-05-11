@@ -14,12 +14,12 @@ int main(int argc, char *argv[])
     
 //    gsl_matrix_alloc(1, 1);
     
-//    QImage qimg("input1.jpg");
-//    QImage qimg2("input2.jpg");
+    QImage qimg("input1.jpg");
+    QImage qimg2("input2.jpg");
 //    QImage qimg("input3.jpg");
 //    QImage qimg2("input4.jpg");
-    QImage qimg("input5.jpg");
-    QImage qimg2("input6.jpg");
+//    QImage qimg("input5.jpg");
+//    QImage qimg2("input6.jpg");
     
     GImage gimg(qimg);
     GImage gimg2(qimg2);
@@ -89,9 +89,9 @@ int main(int argc, char *argv[])
     auto bdesc2 = getDescriptors(gimg2, pv2);
     cout << "bdesc 2: " << bdesc2.size() << endl;
     
-    auto bmatches = getMatches(bdesc1, bdesc2, 1e0);
-//    auto bmatches = getMatches(bdesc1, bdesc2,
-//                               numeric_limits<float>::max());
+//    auto bmatches = getMatches(bdesc1, bdesc2, 1e0);
+    auto bmatches = getMatches(bdesc1, bdesc2,
+                               numeric_limits<float>::max());
     cout << "matches : " << bmatches.size() << endl;
     
     QImage bout = drawMatches(gimg, gimg2, bdesc1, bdesc2, bmatches, 
@@ -108,9 +108,9 @@ int main(int argc, char *argv[])
         r[i] = bdesc2[bmatches[i].second].p;
     }
     
-//    auto h = getRansacTransform(r, l, 10.f, .4f);
+//    auto h = getRansacTransform(r, l, 7.f, .4f);
     auto h = getHoughTransform(r, l, gimg.width, gimg.height,
-                               1e-1, 1e5, 100, 100, 40, 16);
+                               1e-1, 1e5, 100, 100, 27, 16);
 //    auto h = getTransformation(r, l);
     cout << "got transformation" << endl;
     for (size_t i = 0; i < r.size(); i++) {

@@ -145,12 +145,13 @@ GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h)
     int maxx = a.width;
     int maxy = a.height;
     int x[] = {0, 0, b.width, b.width};
-    int y[] = {0, b.height, 0, b.height};
+    int y[] = {0, b.height, b.height, 0};
+    poi e[4];
     for (int i = 0; i < 4; i++) {
         poi p;
         p.x = x[i];
         p.y = y[i];
-        p = transformPOI(h, p);
+        e[i] = p = transformPOI(h, p);
         minx = min(minx, int(round(p.x)));
         miny = min(miny, int(round(p.y)));
         maxx = max(maxx, int(round(p.x)));
@@ -161,30 +162,80 @@ GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h)
         for (int j = 0; j < a.width; j++)
             ret.a[(i - miny) * ret.width + (j - minx)] = 
                     a.a[i * a.width + j];
-    for (int i = 0; i < b.height; i++)
-        for (int j = 0; j < b.width; j++) {
-            poi p;
-            p.x = j;
-            p.y = i;
-            poi v = transformPOI(h, p);
-            p.x++;
-            p.y++;
-            p = transformPOI(h, p);
-            float d = sqrtf((p.x - v.x) * (p.x - v.x) + 
-                    (p.y - v.y) * (p.y - v.y));
-            int r = roundf(d / 2.9f);
-            for (int l = -r; l < r + 1; l++)
-                for (int k = -r; k < r + 1; k++) {
-                    int nx = roundf(v.x + k);
-                    int ny = roundf(v.y + l);
-                    if (nx >= minx && ny >= miny && 
-                            nx < maxx && ny < maxy) {
-                        ret.a[(ny - miny) * ret.width + nx - minx] = 
-                                b.a[i * b.width + j];
-                    }
-                }
-        }
     
+    for (int i = 0; i < 4; i++) {
+        e[i].x -= minx;
+        e[i].y -= miny;
+    }
+    for (int i = 0; i < ret.height; i++)
+        for (int j = 0; j < ret.width; j++) {
+            bool o = true;
+            for (int k = 0; k < 4; k++) {
+                poi& cur = e[k];
+                poi& nxt = e[(k + 1) % 4];
+                poi& prv = e[(k + 3) % 4];
+                if (getVproj(prv.x - cur.x, prv.y - cur.y, 
+                             nxt.x - cur.x, nxt.y - cur.y) * 
+                        getVproj(prv.x - cur.x, prv.y - cur.y, 
+                                 j - cur.x, i - cur.y) < 0)
+                    o = false;
+            }
+            if (!o)
+                continue;
+            float l = 0;
+            float r = 1;
+            float eps = 1e-6;
+            poi x1, x2;
+            while (r - l > eps) {
+                float m = (l + r) / 2.f;
+                x1.x = (1 - m) * e[0].x + m * e[3].x;
+                x1.y = (1 - m) * e[0].y + m * e[3].y;
+                x2.x = (1 - m) * e[1].x + m * e[2].x;
+                x2.y = (1 - m) * e[1].y + m * e[2].y;
+                if (getVproj(e[3].x - x1.x, e[3].y - x1.y,
+                             x2.x - x1.x, x2.y - x1.y) *
+                        getVproj(j - x1.x, i - x1.y,
+                                 x2.x - x1.x, x2.y - x1.y) < 0)
+                    r = m;
+                else
+                    l = m;
+            }
+            float fx = l;
+            
+            l = 0;
+            r = 1;
+            while (r - l > eps) {
+                float m = (l + r) / 2.f;
+                x1.x = (1 - m) * e[0].x + m * e[1].x;
+                x1.y = (1 - m) * e[0].y + m * e[1].y;
+                x2.x = (1 - m) * e[3].x + m * e[2].x;
+                x2.y = (1 - m) * e[3].y + m * e[2].y;
+                if (getVproj(e[1].x - x1.x, e[1].y - x1.y,
+                             x2.x - x1.x, x2.y - x1.y) *
+                        getVproj(j - x1.x, i - x1.y,
+                                 x2.x - x1.x, x2.y - x1.y) < 0)
+                    r = m;
+                else
+                    l = m;
+            }
+            float fy = l;
+            
+            fx *= (b.width - 1);
+            fy *= (b.height - 1);
+            int bx = int(fx);
+            int by = int(fy);
+            float wx = fx - bx;
+            float wy = fy - by;
+            float nwx = 1 - wx;
+            float nwy = 1 - wy;
+            int bxx = bx + 1;
+            int byy = by + 1;
+            ret.a[i * ret.width + j] = b.a[by * b.width + bx] * nwx * nwy + 
+                    b.a[by * b.width + bxx] * wx * nwy + 
+                    b.a[byy * b.width + bx] * nwx * wy + 
+                    b.a[byy * b.width + bxx] * wx * wy;
+            
+        }
     return ret;
 }
 
