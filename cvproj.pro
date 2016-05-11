@@ -19,12 +19,18 @@ SOURCES += main.cpp \
     common.cpp \
     gconvol.cpp \
     gpyramid.cpp \
-    transform.cpp
+    transform.cpp \
+    gdrawing.cpp \
+    gdetectors.cpp \
+    gdescriptor.cpp
 
 HEADERS += \
     gimage.h \
     common.h \
     gconvol.h \
     gpyramid.h \
-    transform.h
+    transform.h \
+    gdrawing.h \
+    gdetectors.h \
+    gdescriptor.h
 

@@ -1,4 +1,5 @@
 #include "gimage.h"
+#include "gdrawing.h"
 
 GImage::GImage()
 {

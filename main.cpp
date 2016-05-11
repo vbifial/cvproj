@@ -3,6 +3,9 @@
 #include "gconvol.h"
 #include "gpyramid.h"
 #include "transform.h"
+#include "gdrawing.h"
+#include "gdetectors.h"
+#include "gdescriptor.h"
 
 int main(int argc, char *argv[])
 {
@@ -105,8 +108,9 @@ int main(int argc, char *argv[])
         r[i] = bdesc2[bmatches[i].second].p;
     }
     
-    auto h = getRansacTransform(r, l, 10, .3f);
+    auto h = getRansacTransform(r, l, 15.f, .4f);
 //    auto h = getTransformation(r, l);
+    cout << "got transformation" << endl;
     for (size_t i = 0; i < r.size(); i++) {
         r[i] = transformPOI(h, r[i]);
     }
