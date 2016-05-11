@@ -2,7 +2,10 @@
 #define GDESCRIPTOR
 #include "common.h"
 
-const int DSIZE = 128;
+const int DRAD = 6; // descriptor`s radius
+const int DBOXES = 4; // boxes quantity per dimension
+const int BDIRS = 8; // directions quantity in box
+const int DSIZE = DBOXES * DBOXES * BDIRS; // descriptor`s size
 
 struct gdescriptor {
     float vec[DSIZE];

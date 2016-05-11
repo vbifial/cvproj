@@ -2,12 +2,17 @@
 #define TRANSFORM_H
 #include "common.h"
 
-vector<float> getTransformation(const poivec& left, const poivec& right);
+vtransform getTransformation(const poivec& left, const poivec& right);
 
-poi transformPOI(const vector<float>& h, const poi& p);
+poi transformPOI(const vtransform& h, const poi& p);
 
-vector<float> getRansacTransform(const poivec& left, const poivec& right, 
+vtransform getRansacTransform(const poivec& left, const poivec& right, 
                                  float inlierR, float threshold);
+
+vtransform getHoughTransform(const poivec &left, const poivec &right, 
+                             int width, int height, float minScale, 
+                             float maxScale, int qx, int qy, 
+                             int qscale, int qorient);
 
 #endif // TRANSFORM_H
 

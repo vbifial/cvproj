@@ -3,9 +3,9 @@
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_blas.h>
 
-vector<float> getTransformation(const poivec &left, const poivec &right)
+vtransform getTransformation(const poivec &left, const poivec &right)
 {
-    vector<float> ret(9);
+    vtransform ret(9);
     int n = min(left.size(), right.size());
     gsl_matrix* a = (gsl_matrix_alloc(2 * n, 9));
     gsl_matrix* at = (gsl_matrix_alloc(9, 2 * n));
@@ -41,7 +41,7 @@ vector<float> getTransformation(const poivec &left, const poivec &right)
     return ret;
 }
 
-poi transformPOI(const vector<float> &h, const poi &p)
+poi transformPOI(const vtransform &h, const poi &p)
 {
     poi r = p;
     float k = p.x * h[6] + p.y * h[7] + h[8];
@@ -50,8 +50,7 @@ poi transformPOI(const vector<float> &h, const poi &p)
     return r;
 }
 
-
-vector<float> getRansacTransform(const poivec &left, const poivec &right, 
+vtransform getRansacTransform(const poivec &left, const poivec &right, 
                                  float inlierR, float threshold)
 {
     vector<float> ret(9);
@@ -88,3 +87,123 @@ vector<float> getRansacTransform(const poivec &left, const poivec &right,
     return ret;
 }
 
+struct hContext {
+    vector<int> head;
+    vector<int> next;
+    vector<int> to;
+    int cnt = 0;
+    a4 a;
+    int wsize, size, qx, qy, qs, qo;
+    
+    hContext(int wsize, int size, int qx, int qy, int qs, int qo, a4& a) {
+        this->a = a;
+        this->size = size;
+        this->wsize = wsize;
+        this->qx = qx;
+        this->qy = qy;
+        this->qs = qs;
+        this->qo = qo;
+        head.resize(wsize);
+        next.resize(size << 5);
+        to.resize(size << 5);
+        fill(begin(head), end(head), -1);
+        cnt = 0;
+    }
+    void add(int u, int v) {
+        to[cnt] = v;
+        next[cnt] = head[u];
+        head[u] = cnt++;
+    }
+    inline void push(int& x, int& y, int& s, int& o, int& m) {
+        int* p = &(a[x][y][s][o]);
+        p[0]++;
+        int id = (p - a.a) / sizeof(int);
+        add(id, m);
+    }
+    inline void pusho(int& x, int& y, int& s, float& o, int& m) {
+        if (s < 0 || s >= qs)
+            return;
+        int co = o;
+        push(x, y, s, co, m);
+        co = (co + 1) % qo;
+        push(x, y, s, co, m);
+    }
+    inline void pushs(int& x, int& y, float& s, float& o, int& m) {
+        if (y < 0 || y >= qy)
+            return;
+        int cs = s;
+        pusho(x, y, cs, o, m);
+        cs++;
+        pusho(x, y, cs, o, m);
+    }
+    inline void pushy(int& x, float& y, float& s, float& o, int& m) {
+        if (x < 0 || x >= qx)
+            return;
+        int cy = y;
+        pushs(x, cy, s, o, m);
+        cy++;
+        pushs(x, cy, s, o, m);
+    }
+    inline void pushx(float& x, float& y, float& s, float& o, int& m) {
+        int cx = x;
+        pushy(cx, y, s, o, m);
+        cx++;
+        pushy(cx, y, s, o, m);
+    }
+};
+
+vtransform getHoughTransform(const poivec &left, const poivec &right, 
+                             int width, int height, float minScale, 
+                             float maxScale, int qx, int qy, 
+                             int qscale, int qorient)
+{
+    int wsize = qx * qy * qscale * qorient;
+    vector<int> va(qx * qy * qscale * qorient);
+    a4 a(&va[0], qy, qscale, qorient);
+    int size = min(left.size(), right.size());
+    hContext context(wsize, size, qx, qy, qscale, qorient, a);
+    
+    for (int i = 0; i < size; i++) {
+        const poi& l = left[i];
+        const poi& r = right[i];
+        float csin = sinf(r.orient);
+        float ccos = cosf(r.orient);
+        float x = l.bx * ccos - -l.by * csin;
+        float y = -(l.bx * csin + -l.by * ccos);
+        x *= r.scale;
+        y *= r.scale;
+        x += r.x;
+        y += r.y;
+        if (x < 0 || y < 0 || x > width - 1 || y > height - 1)
+            continue;
+        float scale = r.scale / l.scale;
+        if (scale < minScale || scale > maxScale)
+            continue;
+        float orient = r.orient;
+        x = x / width * qx;
+        y = y / height * qx;
+        scale = log2f(scale / minScale) / 
+                log2f(maxScale / minScale + 1.f) * qscale;
+        orient = orient / (M_PI * 2.) * qorient;
+        
+        context.pushx(x, y, scale, orient, i);
+    }
+    
+    auto mme = minmax_element(begin(va), end(va));
+    int id = (&(*(mme.second)) - &va[0]) / sizeof(int);
+    
+    poivec al, ar;
+    al.reserve(size);
+    ar.reserve(size);
+    int cnt = 0;
+    for (int i = context.head[id]; i != -1; i = context.next[i]) {
+        int v = context.to[i];
+        al.push_back(left[v]);
+        ar.push_back(right[v]);
+        cnt++;
+    }
+    if (cnt < 4)
+        cout << "Too few points for transformation" << endl;
+    
+    return getTransformation(al, ar);
+}

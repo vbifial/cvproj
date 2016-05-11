@@ -108,7 +108,9 @@ int main(int argc, char *argv[])
         r[i] = bdesc2[bmatches[i].second].p;
     }
     
-    auto h = getRansacTransform(r, l, 15.f, .4f);
+//    auto h = getRansacTransform(r, l, 10.f, .4f);
+    auto h = getHoughTransform(r, l, gimg.width, gimg.height,
+                               1e-1, 1e5, 100, 100, 40, 16);
 //    auto h = getTransformation(r, l);
     cout << "got transformation" << endl;
     for (size_t i = 0; i < r.size(); i++) {

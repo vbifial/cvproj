@@ -3,7 +3,6 @@
 #include "gimage.h"
 #include "gpyramid.h"
 
-
 GConvol getSobelX()
 {
     GConvol ret;
@@ -305,4 +304,9 @@ pair<float, float> getParabolicExtremum(float *x, float *y)
     float x1 = -get<1>(d) * 0.5f / get<2>(d);
     float y1 = x1 * (x1 * get<2>(d) + get<1>(d)) + get<0>(d);
     return make_pair(x1, y1);
+}
+
+float getVproj(float x1, float y1, float x2, float y2)
+{
+    return x2 * y1 - x1 * y2;
 }

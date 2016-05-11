@@ -4,10 +4,6 @@
 
 gdvector getDescriptors(const GImage &img, const poivec &vpoi)
 {
-    const int DRAD = 6; // descriptor-s radius
-    const int DBOXES = 4; // boxes quantity per dimension
-    const int BDIRS = 8; // directions quantity in box
-    
     gdvector ret;
     ret.reserve(vpoi.size());
     
