@@ -167,6 +167,7 @@ GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h)
         e[i].x -= minx;
         e[i].y -= miny;
     }
+    // bilinear
     for (int i = 0; i < ret.height; i++)
         for (int j = 0; j < ret.width; j++) {
             bool o = true;
@@ -188,10 +189,15 @@ GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h)
             poi x1, x2;
             while (r - l > eps) {
                 float m = (l + r) / 2.f;
-                x1.x = (1 - m) * e[0].x + m * e[3].x;
-                x1.y = (1 - m) * e[0].y + m * e[3].y;
-                x2.x = (1 - m) * e[1].x + m * e[2].x;
-                x2.y = (1 - m) * e[1].y + m * e[2].y;
+                x1.x = x2.x = m * (b.width - 1);
+                x1.y = 0;
+                x2.y = b.height - 1;
+                x1 = transformPOI(h, x1);
+                x1.x -= minx;
+                x1.y -= miny;
+                x2 = transformPOI(h, x2);
+                x2.x -= minx;
+                x2.y -= miny;
                 if (getVproj(e[3].x - x1.x, e[3].y - x1.y,
                              x2.x - x1.x, x2.y - x1.y) *
                         getVproj(j - x1.x, i - x1.y,
@@ -206,11 +212,16 @@ GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h)
             r = 1;
             while (r - l > eps) {
                 float m = (l + r) / 2.f;
-                x1.x = (1 - m) * e[0].x + m * e[1].x;
-                x1.y = (1 - m) * e[0].y + m * e[1].y;
-                x2.x = (1 - m) * e[3].x + m * e[2].x;
-                x2.y = (1 - m) * e[3].y + m * e[2].y;
-                if (getVproj(e[1].x - x1.x, e[1].y - x1.y,
+                x1.y = x2.y = m * (b.height - 1);
+                x1.x = 0;
+                x2.x = b.width - 1;
+                x1 = transformPOI(h, x1);
+                x1.x -= minx;
+                x1.y -= miny;
+                x2 = transformPOI(h, x2);
+                x2.x -= minx;
+                x2.y -= miny;
+                if (getVproj(e[2].x - x1.x, e[2].y - x1.y,
                              x2.x - x1.x, x2.y - x1.y) *
                         getVproj(j - x1.x, i - x1.y,
                                  x2.x - x1.x, x2.y - x1.y) < 0)
@@ -234,7 +245,6 @@ GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h)
                     b.a[by * b.width + bxx] * wx * nwy + 
                     b.a[byy * b.width + bx] * nwx * wy + 
                     b.a[byy * b.width + bxx] * wx * wy;
-            
         }
     return ret;
 }
