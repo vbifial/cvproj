@@ -72,9 +72,11 @@ int main(int argc, char *argv[])
     
     
     auto pv1 = getDOGDetection(gimg);
+    cout << "Points 1 " << pv1.size() << endl;
     pv1 = calculateOrientations(gimg, pv1);
     cout << "Points 1 " << pv1.size() << endl;
     auto pv2 = getDOGDetection(gimg2);
+    cout << "Points 2 " << pv2.size() << endl;
     pv2 = calculateOrientations(gimg2, pv2);
     cout << "Points 2 " << pv2.size() << endl;
     
@@ -89,6 +91,7 @@ int main(int argc, char *argv[])
     cout << "bdesc 1: " << bdesc1.size() << endl;
     auto bdesc2 = getDescriptors(gimg2, pv2);
     cout << "bdesc 2: " << bdesc2.size() << endl;
+    
     
 //    auto bmatches = getMatches(bdesc1, bdesc2, 1e0);
     auto bmatches = getMatches(bdesc1, bdesc2,

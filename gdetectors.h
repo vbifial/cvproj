@@ -8,6 +8,7 @@ poivec anms(poivec &in, int target, float diff);
 
 poivec getBlobs(GPyramid &pyr);
 poivec getDOGDetection(const GImage &img);
+poivec getDOGDetection(GPyramid &pyr);
 
 #endif // GDETECTORS
 

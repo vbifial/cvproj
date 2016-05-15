@@ -6,20 +6,16 @@ gdvector getDescriptors(const GImage &img, const poivec &vpoi)
 {
     gdvector ret;
     ret.reserve(vpoi.size());
-    GImage sx = getFaridXSeparate()
-            .applySeparate(img, EdgeType_BorderCopy);
-    GImage sy = getFaridYSeparate()
-            .applySeparate(img, EdgeType_BorderCopy);
     
     for (int i = 0; i < int(vpoi.size()); i++) {
         gdescriptor cdesc;
         poi& p = cdesc.p = vpoi[i];
         float* dv = cdesc.vec;
         
-        calcHistograms(img, sx, sy, p.x, p.y, p.orient, dv, 
+        calcHistograms(img, p.x, p.y, p.orient, dv, 
                        DBOXES, p.scale * DRAD, BDIRS);
         
-        ret.push_back(cdesc);
+        ret.emplace_back(cdesc);
     }
     
     return ret;
@@ -75,33 +71,41 @@ poivec calculateOrientations(GImage &img, poivec &vpoi)
 {
     poivec ret;
     ret.reserve(vpoi.size() * 2);
-    GImage sx = getFaridXSeparate()
-            .applySeparate(img, EdgeType_BorderCopy);
-    GImage sy = getFaridYSeparate()
-            .applySeparate(img, EdgeType_BorderCopy);
     
     for (int i = 0; i < int(vpoi.size()); i++) {
-        poi cur = vpoi[i];
-        auto al = getPOIDirections(img, sx, sy, cur, cur.scale * 3);
-        
-        for (size_t j = 0; j < 2; j++) {
-            float orient = (j == 0 ? al.first : al.second);
-            if (orient == -1)
-                continue;
-            cur.orient = orient;
-            float osin = sinf(cur.orient);
-            float ocos = cosf(cur.orient);
-            float nx = cur.bx * ocos + -cur.by * osin;
-            float ny = -(-cur.by * ocos - cur.bx * osin);
-            cur.bx = nx;
-            cur.by = ny;
-            ret.push_back(cur);
-        }
+        auto p = calculateOrientations(img, vpoi[i], 2.f);
+        ret.push_back(p.first);
+        if (p.second.orient != -1)
+            ret.push_back(p.second);
     }
     return ret;
 }
 
-void calcHistograms(const GImage &img, const GImage &sx, const GImage &sy, 
+pair<poi, poi> calculateOrientations(GImage &img, poi &p, float imgSig) {
+    auto al = getPOIDirections(img, p, p.scale / imgSig * 3.f);
+    pair<poi, poi> ret;
+    ret.second.orient = -1;
+    for (size_t j = 0; j < 2; j++) {
+        float orient = (j == 0 ? al.first : al.second);
+        if (orient == -1)
+            continue;
+        p.orient = orient;
+        float osin = sinf(p.orient);
+        float ocos = cosf(p.orient);
+        float nx = p.bx * ocos + -p.by * osin;
+        float ny = -(-p.by * ocos - p.bx * osin);
+        p.bx = nx;
+        p.by = ny;
+        (j == 0 ? ret.first : ret.second) = p;
+    }
+    return ret;
+}
+
+//poivec calculateOrientations(GPyramid &pyr, poivec &vpoi) {
+    
+//}
+
+void calcHistograms(const GImage &img, 
                     float x, float y, float orient, float *dv, 
                     int dboxes, float rad, int bdirs)
 {
@@ -114,6 +118,7 @@ void calcHistograms(const GImage &img, const GImage &sx, const GImage &sy,
     
     float rsin = sinf(orient);
     float rcos = cosf(orient);
+    float* a = img.a.get();
     int xl = max(0, int(floorf(x - rad)));
     int xr = min(width - 1, int(ceilf(x + rad)));
     int yl = max(0, int(floorf(y - rad)));
@@ -127,8 +132,8 @@ void calcHistograms(const GImage &img, const GImage &sx, const GImage &sy,
             if (cy * cy + cx * cx > rad * rad)
                 continue;
             
-            float dy = sy.a[ny * width + nx];
-            float dx = sx.a[ny * width + nx];
+            float dy = gdy(nx, ny, a, width, height);
+            float dx = gdx(nx, ny, a, width);
             float fi = (atan2f(-dy, dx) + M_PI) - orient;
             if (fi < 0.)
                 fi += M_PI * 2.;
@@ -204,12 +209,12 @@ void calcHistograms(const GImage &img, const GImage &sx, const GImage &sy,
     }
 }
 
-pair<float, float> getPOIDirections(const GImage &img, const GImage &sx, const GImage &sy, const poi &p, float rad)
+pair<float, float> getPOIDirections(const GImage &img, const poi &p, float rad)
 {
     int dcnt = 0;
     int dirs[2];
     float angBoxes[ABCOUNT];
-    calcHistograms(img, sx, sy, p.x, p.y, 0, 
+    calcHistograms(img, p.x, p.y, 0, 
                    &angBoxes[0], 1, rad, ABCOUNT);
     // maximum`s selection
     dcnt = 0;

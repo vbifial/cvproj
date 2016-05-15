@@ -60,6 +60,53 @@ tuple<float, float, float> getParabolicInterpolation(float *x, float *y);
 pair<float, float> getParabolicExtremum(float *x, float *y);
 float getVproj(float x1, float y1, float x2, float y2);
 
+inline float gdx(const int &x, const int &y, const float *img, 
+          const int &width)
+{
+    float c = img[y * width + x];
+    float l = (x > 0 ? img[y * width + x - 1] : c);
+    float r = (x < width - 1 ? img[y * width + x + 1] : c);
+    return (r - l) / 2.f;
+}
+
+inline float gdy(const int &x, const int &y, const float *img, 
+          const int &width, const int &height)
+{
+    float c = img[y * width + x];
+    float l = (y > 0 ? img[(y - 1) * width + x] : c);
+    float r = (y < height - 1 ? img[(y + 1) * width + x] : c);
+    return (r - l) / 2.f;
+}
+inline float gdx2(const int &x, const int &y, const float *img, 
+           const int &width)
+{
+    float c = img[y * width + x];
+    float l = x > 1 ? img[y * width + x - 2] : 
+            (x > 0 ? img[y * width + x - 1] : c);
+    float r = x < width - 2 ? img[y * width + x + 2] : 
+            (x < width - 1 ? img[y * width + x + 1] : c);
+    return r * 0.23f + l * 0.23f - c * 0.47f;
+}
+inline float gdy2(const int &x, const int &y, const float *img, 
+           const int &width, const int &height)
+{
+    float c = img[y * width + x];
+    float l = y > 1 ? img[(y - 2) * width + x] : 
+            (y > 0 ? img[(y - 1) * width + x] : c);
+    float r = y < height - 2 ? img[(y + 2) * width + x] : 
+            (y < height - 1 ? img[(y + 1) * width + x] : c);
+    return r * 0.23f + l * 0.23f - c * 0.47f;
+}
+inline float gdxy(const int &x, const int &y, const float *img, 
+           const int &width, const int &height)
+{
+    float c = gdx(x, y, img, width);
+    float l = (y > 0 ? gdx(x, y - 1, img, width) : c);
+    float r = (y < height - 1 ? gdx(x, y + 1, img, width) : c);
+    return (r - l) / 2.f;
+}
+
+
 struct a2 {
     int* a;
     int size;

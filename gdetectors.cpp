@@ -242,8 +242,12 @@ poivec getBlobs(GPyramid &pyr)
 
 poivec getDOGDetection(const GImage &img)
 {
-    poivec ret;
     GPyramid pyr(img, 1.6, 0.5, 3);
+    return getDOGDetection(pyr);
+}
+
+poivec getDOGDetection(GPyramid &pyr) {
+    poivec ret;
     ret.reserve(pyr.height * pyr.width);
     
     GPyramid doG = pyr.getDOG();
@@ -252,11 +256,6 @@ poivec getDOGDetection(const GImage &img)
     int dx[] = {-1, -1, -1, 0, 0, 1, 1, 1, 0};
     int dy[] = {1, 0, -1, 1, -1, 1, 0, -1, 0};
     const float EDGE_R = 10.f;
-//    int shifts = 0; // debug
-    GConvol farx = getFaridXSeparate();
-    GConvol fary = getFaridYSeparate();
-    GConvol farx2 = getFaridX2Separate();
-    GConvol fary2 = getFaridY2Separate();
     
     for (int i = 0; i < doG.ocnt; i++) {
         for (int j = (i == 0 ? 1 : 0); j < doG.olayers; j++) {
@@ -265,12 +264,7 @@ poivec getDOGDetection(const GImage &img)
             GImage& prv = doG.a[lId - 1];
             GImage& nxt = doG.a[lId + 1];
             GImage* imgs[] = {&cur, &prv, &nxt};
-            
-            GImage sdx = farx.applySeparate(cur, EdgeType_BorderCopy);
-            GImage sdy = fary.applySeparate(cur, EdgeType_BorderCopy);
-            GImage sdx2 = farx2.applySeparate(cur, EdgeType_BorderCopy);
-            GImage sdy2 = fary2.applySeparate(cur, EdgeType_BorderCopy);
-            GImage sdxy = farx.applySeparate(sdy, EdgeType_BorderCopy);
+            float* a = cur.a.get();
             
             for (int y = 1; y < cur.height - 1; y++) {
                 for (int x = 1; x < cur.width - 1; x++) {
@@ -299,40 +293,19 @@ poivec getDOGDetection(const GImage &img)
                         
                         float cdx, cdy, ha, hb, hc, det, trace, gx, gy, gs;
                         float cdx2, cdy2, cdxy;
-//                        cout << cx << " " << cy << endl;
                         
                         // adjusting position
-                        for (int k = 0; k < 3; k++) {
-                            cdx = sdx.a[cy * sdx.width + cx];
-                            cdy = sdy.a[cy * sdx.width + cx];
-                            cdx2 = sdx2.a[cy * sdx.width + cx];
-                            cdy2 = sdy2.a[cy * sdx.width + cx];
-                            cdxy = sdxy.a[cy * sdx.width + cx];
-//                            cout << "diff " << cdx << " " << cdy << endl;
-                            ha = cdx2;
-                            hb = cdxy;
-                            hc = cdy2;
-//                            cout << ha << " " << hb << " " << hc << endl;
-                            det = ha * hc - hb * hb;
-//                            cout << "det " << det << endl;
-                            trace = (ha + hc);
-                            gx = (hb * cdy - hc * cdx) / det;
-                            gy = (hb * cdx - ha * cdy) / det;
-                            if (fabsf(gx) < 0.5f && fabsf(gy) < 0.5f)
-                                break;
-//                            cout << cx << " " << cy << endl;
-//                            cout << "shift " << gx << " " << gy << endl;
-                            // TODO
-                            // debug
-//                            if (fabsf(gx) > 1.f && fabsf(gy) > 1.f)
-//                                shifts++;
-                            break;
-                            if (fabsf(gx) >= 0.5f)
-                                cx += (gx > 0) ? 1 : -1;
-                            if (fabsf(gy) >= 0.5f)
-                                cy += (gy > 0) ? 1 : -1;
-                        }
-                        // temporary interpolation
+                        cdx = gdx(cx, cy, a, cur.width);
+                        cdy = gdy(cx, cy, a, cur.width, cur.height);
+                        cdx2 = gdx(cx, cy, a, cur.width);
+                        cdy2 = gdy(cx, cy, a, cur.width, cur.height);
+                        cdxy = gdxy(cx, cy, a, cur.width, cur.height);
+                        ha = cdx2;
+                        hb = cdxy;
+                        hc = cdy2;
+                        det = ha * hc - hb * hb;
+                        trace = (ha + hc);
+                        // independent parabolic interpolation
                         float ax[3] {-1.f, 0.f, 1.f};
                         float ay1[3] {cur.a[cy * cur.width + cx - 1], 
                                     cur.a[cy * cur.width + cx], 
@@ -350,7 +323,6 @@ poivec getDOGDetection(const GImage &img)
                         gx += e1.first;
                         gy += e2.first;
                         gs += e3.first;
-//                        cout << "shift " << gx << " " << gy << endl;
                         
                         float nd = cur.a[cy * cur.width + cx] + 
                                 gx * cdx / 2.f + gy * cdy / 2.f;
@@ -375,8 +347,6 @@ poivec getDOGDetection(const GImage &img)
             }
         }
     }
-    // debug
-//    cout << "shifts " << shifts << endl;
     
     return ret;
 }
