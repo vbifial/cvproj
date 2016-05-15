@@ -243,7 +243,7 @@ poivec getBlobs(GPyramid &pyr)
 poivec getDOGDetection(const GImage &img)
 {
     poivec ret;
-    GPyramid pyr(img, 1.6, 0.5, 7);
+    GPyramid pyr(img, 1.6, 0.5, 3);
     ret.reserve(pyr.height * pyr.width);
     
     GPyramid doG = pyr.getDOG();
