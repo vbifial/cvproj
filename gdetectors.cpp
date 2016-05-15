@@ -297,8 +297,8 @@ poivec getDOGDetection(GPyramid &pyr) {
                         // adjusting position
                         cdx = gdx(cx, cy, a, cur.width);
                         cdy = gdy(cx, cy, a, cur.width, cur.height);
-                        cdx2 = gdx(cx, cy, a, cur.width);
-                        cdy2 = gdy(cx, cy, a, cur.width, cur.height);
+                        cdx2 = gdx2(cx, cy, a, cur.width);
+                        cdy2 = gdy2(cx, cy, a, cur.width, cur.height);
                         cdxy = gdxy(cx, cy, a, cur.width, cur.height);
                         ha = cdx2;
                         hb = cdxy;
