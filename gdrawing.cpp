@@ -138,7 +138,8 @@ QImage drawBlobs(const GImage &img, poivec &blobs, bool drawDirections)
     return ret;
 }
 
-GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h)
+GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h, 
+                      bool drawSecondImage)
 {
     int minx = 0;
     int miny = 0;
@@ -168,84 +169,124 @@ GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h)
         e[i].y -= miny;
     }
     // bilinear
-    for (int i = 0; i < ret.height; i++)
-        for (int j = 0; j < ret.width; j++) {
-            bool o = true;
-            for (int k = 0; k < 4; k++) {
-                poi& cur = e[k];
-                poi& nxt = e[(k + 1) % 4];
-                poi& prv = e[(k + 3) % 4];
-                if (getVproj(prv.x - cur.x, prv.y - cur.y, 
-                             nxt.x - cur.x, nxt.y - cur.y) * 
-                        getVproj(prv.x - cur.x, prv.y - cur.y, 
-                                 j - cur.x, i - cur.y) < 0)
-                    o = false;
+    if (drawSecondImage) {
+        for (int i = 0; i < ret.height; i++)
+            for (int j = 0; j < ret.width; j++) {
+                bool o = true;
+                for (int k = 0; k < 4; k++) {
+                    poi& cur = e[k];
+                    poi& nxt = e[(k + 1) % 4];
+                    poi& prv = e[(k + 3) % 4];
+                    if (getVproj(prv.x - cur.x, prv.y - cur.y, 
+                                 nxt.x - cur.x, nxt.y - cur.y) * 
+                            getVproj(prv.x - cur.x, prv.y - cur.y, 
+                                     j - cur.x, i - cur.y) < 0)
+                        o = false;
+                }
+                if (!o)
+                    continue;
+                float l = 0;
+                float r = 1;
+                float eps = 1e-6;
+                poi x1, x2;
+                while (r - l > eps) {
+                    float m = (l + r) / 2.f;
+                    x1.x = x2.x = m * (b.width - 1);
+                    x1.y = 0;
+                    x2.y = b.height - 1;
+                    x1 = transformPOI(h, x1);
+                    x1.x -= minx;
+                    x1.y -= miny;
+                    x2 = transformPOI(h, x2);
+                    x2.x -= minx;
+                    x2.y -= miny;
+                    if (getVproj(e[3].x - x1.x, e[3].y - x1.y,
+                                 x2.x - x1.x, x2.y - x1.y) *
+                            getVproj(j - x1.x, i - x1.y,
+                                     x2.x - x1.x, x2.y - x1.y) < 0)
+                        r = m;
+                    else
+                        l = m;
+                }
+                float fx = l;
+                
+                l = 0;
+                r = 1;
+                while (r - l > eps) {
+                    float m = (l + r) / 2.f;
+                    x1.y = x2.y = m * (b.height - 1);
+                    x1.x = 0;
+                    x2.x = b.width - 1;
+                    x1 = transformPOI(h, x1);
+                    x1.x -= minx;
+                    x1.y -= miny;
+                    x2 = transformPOI(h, x2);
+                    x2.x -= minx;
+                    x2.y -= miny;
+                    if (getVproj(e[2].x - x1.x, e[2].y - x1.y,
+                                 x2.x - x1.x, x2.y - x1.y) *
+                            getVproj(j - x1.x, i - x1.y,
+                                     x2.x - x1.x, x2.y - x1.y) < 0)
+                        r = m;
+                    else
+                        l = m;
+                }
+                float fy = l;
+                
+                fx *= (b.width - 1);
+                fy *= (b.height - 1);
+                int bx = int(fx);
+                int by = int(fy);
+                float wx = fx - bx;
+                float wy = fy - by;
+                float nwx = 1 - wx;
+                float nwy = 1 - wy;
+                int bxx = bx + 1;
+                int byy = by + 1;
+                ret.a[i * ret.width + j] = b.a[by * b.width + bx] * nwx * nwy + 
+                        b.a[by * b.width + bxx] * wx * nwy + 
+                        b.a[byy * b.width + bx] * nwx * wy + 
+                        b.a[byy * b.width + bxx] * wx * wy;
             }
-            if (!o)
-                continue;
-            float l = 0;
-            float r = 1;
-            float eps = 1e-6;
-            poi x1, x2;
-            while (r - l > eps) {
-                float m = (l + r) / 2.f;
-                x1.x = x2.x = m * (b.width - 1);
-                x1.y = 0;
-                x2.y = b.height - 1;
-                x1 = transformPOI(h, x1);
-                x1.x -= minx;
-                x1.y -= miny;
-                x2 = transformPOI(h, x2);
-                x2.x -= minx;
-                x2.y -= miny;
-                if (getVproj(e[3].x - x1.x, e[3].y - x1.y,
-                             x2.x - x1.x, x2.y - x1.y) *
-                        getVproj(j - x1.x, i - x1.y,
-                                 x2.x - x1.x, x2.y - x1.y) < 0)
-                    r = m;
-                else
-                    l = m;
-            }
-            float fx = l;
-            
-            l = 0;
-            r = 1;
-            while (r - l > eps) {
-                float m = (l + r) / 2.f;
-                x1.y = x2.y = m * (b.height - 1);
-                x1.x = 0;
-                x2.x = b.width - 1;
-                x1 = transformPOI(h, x1);
-                x1.x -= minx;
-                x1.y -= miny;
-                x2 = transformPOI(h, x2);
-                x2.x -= minx;
-                x2.y -= miny;
-                if (getVproj(e[2].x - x1.x, e[2].y - x1.y,
-                             x2.x - x1.x, x2.y - x1.y) *
-                        getVproj(j - x1.x, i - x1.y,
-                                 x2.x - x1.x, x2.y - x1.y) < 0)
-                    r = m;
-                else
-                    l = m;
-            }
-            float fy = l;
-            
-            fx *= (b.width - 1);
-            fy *= (b.height - 1);
-            int bx = int(fx);
-            int by = int(fy);
-            float wx = fx - bx;
-            float wy = fy - by;
-            float nwx = 1 - wx;
-            float nwy = 1 - wy;
-            int bxx = bx + 1;
-            int byy = by + 1;
-            ret.a[i * ret.width + j] = b.a[by * b.width + bx] * nwx * nwy + 
-                    b.a[by * b.width + bxx] * wx * nwy + 
-                    b.a[byy * b.width + bx] * nwx * wy + 
-                    b.a[byy * b.width + bxx] * wx * wy;
-        }
+    }
+    return ret;
+}
+
+QImage drawBorder(const GImage& a, const GImage& b, const vector<float>& h)
+{
+    int minx = 0;
+    int miny = 0;
+    int maxx = a.width;
+    int maxy = a.height;
+    int x[] = {0, 0, b.width, b.width};
+    int y[] = {0, b.height, b.height, 0};
+    poi e[4];
+    for (int i = 0; i < 4; i++) {
+        poi p;
+        p.x = x[i];
+        p.y = y[i];
+        e[i] = p = transformPOI(h, p);
+        minx = min(minx, int(round(p.x)));
+        miny = min(miny, int(round(p.y)));
+        maxx = max(maxx, int(round(p.x)));
+        maxy = max(maxy, int(round(p.y)));
+    }
+    GImage img(maxx - minx, maxy - miny);
+    for (int i = 0; i < a.height; i++)
+        for (int j = 0; j < a.width; j++)
+            img.a[(i - miny) * img.width + (j - minx)] = 
+                    a.a[i * a.width + j];
+    
+    for (int i = 0; i < 4; i++) {
+        e[i].x -= minx;
+        e[i].y -= miny;
+    }
+    QImage ret = img.convert();
+    for (int i = 0; i < 4; i++) {
+        int i2 = (i + 1) % 4;
+        drawLine(ret, e[i].x, e[i].y, e[i2].x, e[i2].y, 255 << 16);
+    }
+    
     return ret;
 }
 

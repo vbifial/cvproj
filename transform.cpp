@@ -103,10 +103,9 @@ struct hContext {
         this->qy = qy;
         this->qs = qs;
         this->qo = qo;
-        head.resize(wsize);
+        head.resize(wsize, -1);
         next.resize(size << 5);
         to.resize(size << 5);
-        fill(begin(head), end(head), -1);
         cnt = 0;
     }
     void add(int u, int v) {
@@ -117,7 +116,7 @@ struct hContext {
     inline void push(int& x, int& y, int& s, int& o, int& m) {
         int* p = &(a[x][y][s][o]);
         p[0]++;
-        int id = (p - a.a) / sizeof(int);
+        int id = (p - a.a);
         add(id, m);
     }
     inline void pusho(int& x, int& y, int& s, float& o, int& m) {
@@ -189,8 +188,8 @@ vtransform getHoughTransform(const poivec &left, const poivec &right,
         context.pushx(x, y, scale, orient, i);
     }
     
-    auto mme = minmax_element(begin(va), end(va));
-    int id = (&(*(mme.second)) - &va[0]) / sizeof(int);
+    auto mme = max_element(begin(va), end(va));
+    int id = mme - begin(va);
     
     poivec al, ar;
     al.reserve(size);

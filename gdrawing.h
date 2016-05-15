@@ -19,7 +19,9 @@ QImage drawMatches(const GImage &img1, const GImage &img2,
 QImage drawBlobs(const GImage &img, poivec &blobs, bool drawDirections);
 void saveJpeg(QImage &img, const char* filename);
 
-GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h);
+GImage getOverlapping(const GImage& a, const GImage& b, const vector<float>& h, 
+                      bool drawSecondImage);
+QImage drawBorder(const GImage& a, const GImage& b, const vector<float>& h);
 
 #endif // GDRAWING_H
 

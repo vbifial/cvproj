@@ -28,25 +28,26 @@ int main(int argc, char *argv[])
     
 //    gimg.save("output.jpg");
     
-    QImage qbimg("binput.jpg");
+//    QImage qbimg("binput.jpg");
+    QImage qbimg("old\\input-face.jpg");
     GImage bimg(qbimg);
-//    GPyramid pyr(bimg, 1.6, .5, 4);
+    GPyramid pyr(bimg, 1.6, .5, 3);
     
-//    GPyramid dpyr = pyr.getDOG();
-//    GPyramid& ypyr = dpyr;
+    GPyramid dpyr = pyr.getDOG();
+    GPyramid& ypyr = dpyr;
     
-//    char c[20] = "pyr??.jpg";
+    char c[20] = "pyr??.jpg";
     
-//    for (int i = 0; i < ypyr.ocnt; i++) {
-//        c[3] = '0' + i;
-//        for (int j = (i == 0 ? 0 : -1); j < ypyr.olayers + 1; j++) {
-//            GImage& gout = ypyr.a[i * (ypyr.olayers + 2) + j];
-//            c[4] = '0' + j + 1;
-//            for (int x = 0; x < gout.height * gout.width; x++)
-//                gout.a[x] = -gout.a[x] * 0.5f + 0.5f;
-//            gout.save(c);
-//        }
-//    }
+    for (int i = 0; i < ypyr.ocnt; i++) {
+        c[3] = '0' + i;
+        for (int j = (i == 0 ? 0 : -1); j < ypyr.olayers + 1; j++) {
+            GImage& gout = ypyr.a[i * (ypyr.olayers + 2) + j];
+            c[4] = '0' + j + 1;
+            for (int x = 0; x < gout.height * gout.width; x++)
+                gout.a[x] = -gout.a[x] * 0.5f + 0.5f;
+            gout.save(c);
+        }
+    }
 //    for (int i = 0; i < pyr.ocnt; i++) {
 //        c[3] = '0' + i;
 //        for (int j = 0; j < pyr.olayers + 2; j++) {
@@ -108,9 +109,9 @@ int main(int argc, char *argv[])
         r[i] = bdesc2[bmatches[i].second].p;
     }
     
-//    auto h = getRansacTransform(r, l, 7.f, .4f);
+//    auto h = getRansacTransform(r, l, 50.f, .4f);
     auto h = getHoughTransform(r, l, gimg.width, gimg.height,
-                               1e-1, 1e5, 100, 80, 27, 16);
+                               1e-3, 1e3, 100, 100, 27, 16);
 //    auto h = getTransformation(r, l);
     cout << "got transformation" << endl;
     for (size_t i = 0; i < r.size(); i++) {
@@ -119,8 +120,10 @@ int main(int argc, char *argv[])
     auto out3 = drawBlobs(gimg, r, true);
     saveJpeg(out3, "out3.jpg");
     
-    auto out4 = getOverlapping(gimg, gimg2, h);
+    auto out4 = getOverlapping(gimg, gimg2, h, true);
+    auto out5 = drawBorder(gimg, gimg2, h);
     out4.save("out4.jpg");
+    saveJpeg(out5, "out5.jpg");
     
     
     
