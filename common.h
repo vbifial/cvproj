@@ -4,6 +4,7 @@
 #define _USE_MATH_DEFINES
 #include <QCoreApplication>
 #include <iostream>
+#include <fstream>
 #include <QImage>
 #include <memory>
 #include <cmath>

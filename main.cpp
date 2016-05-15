@@ -70,14 +70,15 @@ int main(int argc, char *argv[])
 //    auto out = drawBlobs(bimg, blobs, false);
 //    saveJpeg(out, "blobs.jpg");
     
-    
-    auto pv1 = getDOGDetection(gimg);
+    GPyramid pyr1(gimg, 1.6f, .5f, 3);
+    GPyramid pyr2(gimg2, 1.6f, .5f, 3);
+    auto pv1 = getDOGDetection(pyr1);
     cout << "Points 1 " << pv1.size() << endl;
-    pv1 = calculateOrientations(gimg, pv1);
+    pv1 = calculateOrientations(pyr1, pv1);
     cout << "Points 1 " << pv1.size() << endl;
-    auto pv2 = getDOGDetection(gimg2);
+    auto pv2 = getDOGDetection(pyr2);
     cout << "Points 2 " << pv2.size() << endl;
-    pv2 = calculateOrientations(gimg2, pv2);
+    pv2 = calculateOrientations(pyr2, pv2);
     cout << "Points 2 " << pv2.size() << endl;
     
     auto out1 = drawBlobs(gimg, pv1, true);
@@ -87,15 +88,14 @@ int main(int argc, char *argv[])
     cout << "draw2" << endl;
     saveJpeg(out2, "out2.jpg");
     
-    auto bdesc1 = getDescriptors(gimg, pv1);
+    auto bdesc1 = getDescriptors(pyr1, pv1);
     cout << "bdesc 1: " << bdesc1.size() << endl;
-    auto bdesc2 = getDescriptors(gimg2, pv2);
+    auto bdesc2 = getDescriptors(pyr2, pv2);
     cout << "bdesc 2: " << bdesc2.size() << endl;
     
-    
-//    auto bmatches = getMatches(bdesc1, bdesc2, 1e0);
-    auto bmatches = getMatches(bdesc1, bdesc2,
-                               numeric_limits<float>::max());
+    auto bmatches = getMatches(bdesc1, bdesc2, 10e-1);
+//    auto bmatches = getMatches(bdesc1, bdesc2,
+//                               numeric_limits<float>::max());
     cout << "matches : " << bmatches.size() << endl;
     
     QImage bout = drawMatches(gimg, gimg2, bdesc1, bdesc2, bmatches, 
@@ -112,21 +112,21 @@ int main(int argc, char *argv[])
         r[i] = bdesc2[bmatches[i].second].p;
     }
     
-////    auto h = getRansacTransform(r, l, 50.f, .4f);
-//    auto h = getHoughTransform(r, l, gimg.width, gimg.height,
-//                               1e-3, 1e3, 200, 200, 27, 16);
-////    auto h = getTransformation(r, l);
-//    cout << "got transformation" << endl;
-//    for (size_t i = 0; i < r.size(); i++) {
-//        r[i] = transformPOI(h, r[i]);
-//    }
-//    auto out3 = drawBlobs(gimg, r, true);
-//    saveJpeg(out3, "out3.jpg");
+//    auto h = getRansacTransform(r, l, 25.f, .3f);
+    auto h = getHoughTransform(r, l, gimg.width, gimg.height,
+                               1e-3, 1e3, 50, 50, 23, 16);
+//    auto h = getTransformation(r, l);
+    cout << "got transformation" << endl;
+    for (size_t i = 0; i < r.size(); i++) {
+        r[i] = transformPOI(h, r[i]);
+    }
+    auto out3 = drawBlobs(gimg, r, true);
+    saveJpeg(out3, "out3.jpg");
     
 //    auto out4 = getOverlapping(gimg, gimg2, h, true);
-//    auto out5 = drawBorder(gimg, gimg2, h);
 //    out4.save("out4.jpg");
-//    saveJpeg(out5, "out5.jpg");
+    auto out5 = drawBorder(gimg, gimg2, h);
+    saveJpeg(out5, "out5.jpg");
     
     
     

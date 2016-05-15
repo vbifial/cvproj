@@ -14,19 +14,23 @@ struct gdescriptor {
 };
 
 gdvector getDescriptors(const GImage &img, const poivec &vpoi);
+gdvector getDescriptors(const GPyramid &pyr, const poivec &vpoi);
 
 poivec calculateOrientations(GImage &img, poivec &vpoi);
-pair<poi, poi> calculateOrientations(GImage &img, poi &p, float imgSig);
-//poivec calculateOrientations(GPyramid &pyr, poivec &vpoi);
+poivec calculateOrientations(GPyramid &pyr, poivec &vpoi);
+pair<poi, poi> calculateOrientations(GImage &img, poi &p, 
+                                     float imgSig, float cscale);
 
 vector<pair<int, int> > getMatches(const gdvector &dfirst, 
-                                   const gdvector &dsecond, const float thres);
+                                   const gdvector &dsecond, 
+                                   const float thres);
 
 void calcHistograms(const GImage &img, 
                     float x, float y, float orient, float* dv, 
-                    int dboxes, float rad, int bdirs);
+                    int dboxes, float rad, int bdirs, float cscale);
 
-pair<float, float> getPOIDirections(const GImage& img, const poi& p, float rad);
+pair<float, float> getPOIDirections(const GImage& img, 
+                                    const poi& p, float rad, float cscale);
 
 #endif // GDESCRIPTOR
 

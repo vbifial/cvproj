@@ -1,21 +1,48 @@
 #include "gdescriptor.h"
 #include "gimage.h"
 #include "gconvol.h"
+#include "gpyramid.h"
 
 gdvector getDescriptors(const GImage &img, const poivec &vpoi)
 {
     gdvector ret;
     ret.reserve(vpoi.size());
     
-    for (int i = 0; i < int(vpoi.size()); i++) {
+    for (size_t i = 0; i < vpoi.size(); i++) {
         gdescriptor cdesc;
         poi& p = cdesc.p = vpoi[i];
         float* dv = cdesc.vec;
         
         calcHistograms(img, p.x, p.y, p.orient, dv, 
-                       DBOXES, p.scale * DRAD, BDIRS);
+                       DBOXES, p.scale * DRAD, BDIRS, 1);
         
-        ret.emplace_back(cdesc);
+        ret.push_back(cdesc);
+    }
+    
+    return ret;
+}
+
+gdvector getDescriptors(const GPyramid &pyr, const poivec &vpoi) {
+    gdvector ret;
+    ret.reserve(vpoi.size());
+    
+    for (size_t i = 0; i < vpoi.size(); i++) {
+        gdescriptor cdesc;
+        poi& p = cdesc.p = vpoi[i];
+        float* dv = cdesc.vec;
+        
+        float sig = p.scale / CSIGSIZE;
+        int layer = roundf(log2f(sig / pyr.sbase) * pyr.olayers);
+        layer = min(pyr.ocnt * pyr.olayers - 1, max(layer, 0));
+        int clayer = layer % pyr.olayers;
+        int coct = layer / pyr.olayers;
+        const GImage &img = pyr.a[coct * (pyr.olayers + 3) + clayer];
+        float esig = pyr.sbase * exp2f(coct);
+        
+        calcHistograms(img, p.x, p.y, p.orient, dv, DBOXES, 
+                       p.scale / esig * DRAD, BDIRS, 1.f / (1 << coct));
+        
+        ret.push_back(cdesc);
     }
     
     return ret;
@@ -72,22 +99,49 @@ poivec calculateOrientations(GImage &img, poivec &vpoi)
     poivec ret;
     ret.reserve(vpoi.size() * 2);
     
-    for (int i = 0; i < int(vpoi.size()); i++) {
-        auto p = calculateOrientations(img, vpoi[i], 2.f);
-        ret.push_back(p.first);
-        if (p.second.orient != -1)
+    for (size_t i = 0; i < vpoi.size(); i++) {
+        auto p = calculateOrientations(img, vpoi[i], .5f, 1.f);
+        if (p.first.orient != -1.f)
+            ret.push_back(p.first);
+        if (p.second.orient != -1.f)
             ret.push_back(p.second);
     }
+    
     return ret;
 }
 
-pair<poi, poi> calculateOrientations(GImage &img, poi &p, float imgSig) {
-    auto al = getPOIDirections(img, p, p.scale / imgSig * 3.f);
+poivec calculateOrientations(GPyramid &pyr, poivec &vpoi) {
+    poivec ret;
+    ret.reserve(vpoi.size() * 2);
+    
+    for (size_t i = 0; i < vpoi.size(); i++) {
+        float sig = vpoi[i].scale / CSIGSIZE;
+        int layer = roundf(log2f(sig / pyr.sbase) * pyr.olayers);
+        layer = min(pyr.ocnt * pyr.olayers - 1, max(layer, 0));
+        int clayer = layer % pyr.olayers;
+        int coct = layer / pyr.olayers;
+        auto p = calculateOrientations
+                (pyr.a[coct * (pyr.olayers + 3) + clayer], vpoi[i], 
+                pyr.sbase * exp2f(float(layer) / pyr.olayers),
+                1.f / (1 << coct));
+        if (p.first.orient != -1.f)
+            ret.push_back(p.first);
+        if (p.second.orient != -1.f)
+            ret.push_back(p.second);
+    }
+    
+    return ret;
+}
+
+pair<poi, poi> calculateOrientations(GImage &img, poi &p, 
+                                     float imgSig, float cscale) {
+    auto al = getPOIDirections(img, p, p.scale / imgSig * 3.f, cscale);
     pair<poi, poi> ret;
-    ret.second.orient = -1;
-    for (size_t j = 0; j < 2; j++) {
+    ret.first.orient = -1.f;
+    ret.second.orient = -1.f;
+    for (int j = 0; j < 2; j++) {
         float orient = (j == 0 ? al.first : al.second);
-        if (orient == -1)
+        if (orient == -1.f)
             continue;
         p.orient = orient;
         float osin = sinf(p.orient);
@@ -96,18 +150,17 @@ pair<poi, poi> calculateOrientations(GImage &img, poi &p, float imgSig) {
         float ny = -(-p.by * ocos - p.bx * osin);
         p.bx = nx;
         p.by = ny;
-        (j == 0 ? ret.first : ret.second) = p;
+        if (j == 0)
+            ret.first = p;
+        else
+            ret.second = p;
     }
     return ret;
 }
 
-//poivec calculateOrientations(GPyramid &pyr, poivec &vpoi) {
-    
-//}
-
 void calcHistograms(const GImage &img, 
                     float x, float y, float orient, float *dv, 
-                    int dboxes, float rad, int bdirs)
+                    int dboxes, float rad, int bdirs, float cscale)
 {
     int width = img.width;
     int height = img.height;
@@ -115,6 +168,8 @@ void calcHistograms(const GImage &img,
     
     float sqs = rad / 2.;
     sqs *= sqs;
+    x = (x + 0.5f) * cscale - 0.5f;
+    y = (y + 0.5f) * cscale - 0.5f;
     
     float rsin = sinf(orient);
     float rcos = cosf(orient);
@@ -122,7 +177,7 @@ void calcHistograms(const GImage &img,
     int xl = max(0, int(floorf(x - rad)));
     int xr = min(width - 1, int(ceilf(x + rad)));
     int yl = max(0, int(floorf(y - rad)));
-    int yr = min(height - 1, int(ceilf(x + rad)));
+    int yr = min(height - 1, int(ceilf(y + rad)));
     
     for (int ny = yl; ny <= yr; ny++) {
         for (int nx = xl; nx <= xr; nx++) {
@@ -209,13 +264,14 @@ void calcHistograms(const GImage &img,
     }
 }
 
-pair<float, float> getPOIDirections(const GImage &img, const poi &p, float rad)
+pair<float, float> getPOIDirections(const GImage &img, const poi &p, 
+                                    float rad, float cscale)
 {
     int dcnt = 0;
     int dirs[2];
     float angBoxes[ABCOUNT];
     calcHistograms(img, p.x, p.y, 0, 
-                   &angBoxes[0], 1, rad, ABCOUNT);
+                   &angBoxes[0], 1, rad, ABCOUNT, cscale);
     // maximum`s selection
     dcnt = 0;
     int maxId = max_element(begin(angBoxes), end(angBoxes)) - 
@@ -239,7 +295,7 @@ pair<float, float> getPOIDirections(const GImage &img, const poi &p, float rad)
         float y1 = angBoxes[x1];
         float y2 = angBoxes[x2];
         float y3 = angBoxes[x3];
-        if (y2 <= y1 || y2 <= y3)
+        if (y2 < y1 || y2 < y3 || (y2 == y3 && y2 == y1))
             continue;
         
         float ax[] = {float(x2 - 1), float(x2), float(x2 + 1)};
@@ -248,9 +304,11 @@ pair<float, float> getPOIDirections(const GImage &img, const poi &p, float rad)
         float rtx = getParabolicExtremum(ax, ay).first;
         if (rtx < 0)
             rtx += ABCOUNT;
-        
-        (j == 0 ? ret.first : ret.second) = 
-                float(M_PI) * 2.f * (rtx) / ABCOUNT;
+        rtx *= float(M_PI) * 2.f / ABCOUNT;
+        if (j == 0)
+            ret.first = rtx;
+        else
+            ret.second = rtx;
     }
     return ret;
 }
