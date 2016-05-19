@@ -24,6 +24,9 @@ pair<poi, poi> calculateOrientations(GImage &img, poi &p,
 vector<pair<int, int> > getMatches(const gdvector &dfirst, 
                                    const gdvector &dsecond, 
                                    const float thres);
+pair<poivec, poivec> getMatchingPOIs(const gdvector &dfirst, 
+                                const gdvector &dsecond, 
+                                const float thres);
 
 void calcHistograms(const GImage &img, 
                     float x, float y, float orient, float* dv, 

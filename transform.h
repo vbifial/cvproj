@@ -13,6 +13,10 @@ vtransform getHoughTransform(const poivec &left, const poivec &right,
                              int width, int height, float minScale, 
                              float maxScale, int qx, int qy, 
                              int qscale, int qorient);
+pair<vtransform, int> getHough(const poivec &left, const poivec &right, 
+                             int width, int height, float minScale, 
+                             float maxScale, int qx, int qy, 
+                             int qscale, int qorient);
 
 #endif // TRANSFORM_H
 

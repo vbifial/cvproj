@@ -53,7 +53,10 @@ vector<pair<int, int> > getMatches(const gdvector &dfirst,
                                    const float thres)
 {
     vector<pair<int, int> > ret;
-    ret.reserve(min(dfirst.size(), dsecond.size()));
+    int size = min(dfirst.size(), dsecond.size());
+    if (size == 0)
+        return ret;
+    ret.reserve(size);
     
     vector<size_t> lp(dfirst.size());
     vector<size_t> rp(dsecond.size());    
@@ -92,6 +95,23 @@ vector<pair<int, int> > getMatches(const gdvector &dfirst,
     }
     
     return ret;
+}
+
+pair<poivec, poivec> getMatchingPOIs(const gdvector &dfirst, 
+                                const gdvector &dsecond, 
+                                const float thres) {
+    auto a = getMatches(dfirst, dsecond, thres);
+    poivec l;
+    poivec r;
+    if (a.size() == 0)
+        return make_pair(l, r);
+    l.resize(a.size());
+    r.resize(a.size());
+    for (size_t i = 0; i < a.size(); i++) {
+        l[i] = dfirst[a[i].first].p;
+        r[i] = dsecond[a[i].second].p;
+    }
+    return make_pair(l, r);
 }
 
 poivec calculateOrientations(GImage &img, poivec &vpoi)

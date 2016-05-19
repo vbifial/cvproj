@@ -156,6 +156,14 @@ vtransform getHoughTransform(const poivec &left, const poivec &right,
                              float maxScale, int qx, int qy, 
                              int qscale, int qorient)
 {
+    return getHough(left, right, width, height, minScale, maxScale, 
+                    qx, qy, qscale, qorient).first;
+}
+
+pair<vtransform, int> getHough(const poivec &left, const poivec &right, 
+                             int width, int height, float minScale, 
+                             float maxScale, int qx, int qy, 
+                             int qscale, int qorient) {
     int wsize = qx * qy * qscale * qorient;
     vector<int> va(qx * qy * qscale * qorient);
     a4 a(&va[0], qy, qscale, qorient);
@@ -201,8 +209,10 @@ vtransform getHoughTransform(const poivec &left, const poivec &right,
         ar.push_back(right[v]);
         cnt++;
     }
-    if (cnt < 4)
-        cout << "Too few points for transformation" << endl;
+    if (cnt < 4) {
+        vector<float> ret(9, 0);
+        return make_pair(ret, cnt);
+    }
     
-    return getTransformation(al, ar);
+    return make_pair(getTransformation(al, ar), cnt);
 }
